@@ -461,8 +461,12 @@ h1, h2 { margin: 5px 0 0; font-size: clamp(26px, 3vw, 42px); line-height: 1.05; 
 
      `relative` und nicht `static`: Das Feld der Zeichnung hängt mit `inset: 0`
      an der Bühne. Ohne einen Bezug spannte es sich über die ganze Seite, und
-     die Zeichnung sässe in deren Mitte statt auf der Bühne. */
-  .device-stage { position: relative; height: 62vh; min-height: 340px; }
+     die Zeichnung sässe in deren Mitte statt auf der Bühne. Dazu gehört
+     `top: auto`: Die Bühne trägt den Wert 76 fürs Kleben, und `relative`
+     nimmt ihn ernst – sie rückte sonst um diesen Betrag nach unten, liesse
+     eine Lücke unter der Kopfzeile und legte sich über die Werte darunter.
+     `static` hatte ihn schlicht ignoriert. */
+  .device-stage { position: relative; top: auto; height: 62vh; min-height: 340px; }
   .pad-svg { width: min(100%, 420px); }
 }
 
