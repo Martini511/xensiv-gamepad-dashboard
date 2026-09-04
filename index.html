@@ -1,349 +1,312 @@
-<!DOCTYPE html>
+<!doctype html>
 <html lang="de">
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Infineon | Game Controller Dashboard – HMI Demo</title>
+  <meta name="theme-color" content="#f2f5f5">
+  <title>Infineon | XENSIV&trade; Game Controller Dashboard</title>
   <meta name="description"
         content="Infineon Demo-Anwendung: Live-Visualisierung von
-                 Eingabegeräten über die Web Gamepad API.">
-  <link rel="stylesheet" href="style.css">
+                 Eingabeger&auml;ten &uuml;ber die Web Gamepad API.">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600&amp;family=Source+Sans+3:wght@400;500;600;700&amp;display=swap" rel="stylesheet">
+  <!-- Die Fassungsnummer zwingt Browser und Auslieferung dazu, die
+       aktuelle Datei zu holen statt einer zwischengespeicherten. -->
+  <link rel="stylesheet" href="./style.css?v=1">
 </head>
 <body>
 
-  <!-- ─── Kopfzeile ──────────────────────────────── -->
-  <header class="ifx-header">
-    <div class="ifx-header-inner">
-      <div class="ifx-logo">
-        <img class="ifx-logo-img"
-             src="lowres-Logo_Infineon_RGB.eps.png"
-             alt="Infineon Technologies">
+  <header class="app-header">
+    <a class="brand" href="./" aria-label="Infineon XENSIV Game Controller Dashboard">
+      <img class="brand-logo" src="./lowres-Logo_Infineon_RGB.eps.png" alt="Infineon Technologies">
+      <span class="brand-text">
+        <strong>XENSIV&trade; Game Controller</strong>
+        <small>Live-Konsole</small>
+      </span>
+    </a>
+    <div class="connection-tools">
+      <div id="connection-label" class="connection-label" data-state="offline">
+        <span class="status-dot"></span><span id="connection-text">Nicht verbunden</span>
       </div>
-
-      <nav class="ifx-nav" aria-label="Hauptnavigation">
-        <a class="ifx-nav-item is-active" href="#pad-card">
-          Visualisierung
-        </a>
-        <a class="ifx-nav-item" href="#axes-card">Achsen</a>
-        <a class="ifx-nav-item" href="#buttons-card">Tasten</a>
-        <a class="ifx-nav-item" href="#log-card">Protokoll</a>
-      </nav>
-
-      <span class="ifx-badge">Customer Demo</span>
+      <button id="connect-button" class="primary-button">Controller suchen</button>
     </div>
   </header>
 
-  <!-- ─── Hero ───────────────────────────────────── -->
-  <section class="ifx-hero">
-    <div class="ifx-hero-inner">
-      <p class="ifx-eyebrow">
-        Human Machine Interface &middot; Web Demo
-      </p>
-      <h1>Game Controller Dashboard</h1>
-      <p class="ifx-hero-text">
-        Echtzeit-Visualisierung von Tasten- und Achswerten
-        eines angeschlossenen Eingabegeräts. Die Demo zeigt,
-        wie sich Sensor- und Steuerdaten latenzarm im Browser
-        auswerten und darstellen lassen.
-      </p>
-      <div class="ifx-hero-meta">
-        <span>Web Gamepad API</span>
-        <span>60 Hz Polling</span>
-        <span>Zero Install</span>
-      </div>
-    </div>
-  </section>
+  <main class="app-shell">
+    <!-- Der Controller kennt keine Einstellungen. Es bleibt bei dieser einen
+         Ansicht, und eine Reiterleiste mit nur einem Reiter waere kein
+         Wegweiser, sondern eine leere Geste. -->
+    <div class="panel panel-stage" id="live-panel">
+      <div class="stage-shell">
 
-  <main class="container" id="dashboard">
+        <aside class="device-stage">
+          <div class="stage-label">
+            <span>GER&Auml;T 01</span><span>GAMEPAD API</span>
+          </div>
 
-    <!-- Verbindungsstatus -->
-    <div class="card" id="status-card">
-      <div class="status-row">
-        <div class="status-dot" id="status-dot"></div>
-        <span id="status-text">
-          Kein Controller verbunden
-        </span>
-      </div>
-      <p class="hint">
-        Verbinden Sie Ihren Controller per USB oder Bluetooth
-        und drücken Sie eine beliebige Taste.
-        Unterstützt werden Geräte mit 16 Tasten und 4 Achsen.
-      </p>
-    </div>
+          <div class="pad-stage">
+            <!-- Das animierte CAD-Modell soll die Buehne spaeter uebernehmen.
+                 Solange es fehlt, bleibt das Zeichenfeld verborgen; sichtbar
+                 ist die Zeichnung darunter, die dieselben Zustaende zeigt.
+                 Steht ein Modell bereit, genuegt die Klasse `has-model` auf
+                 der Buehne, um umzuschalten. -->
+            <canvas class="pad-canvas" id="pad-canvas" hidden
+                    aria-label="Modell des XENSIV Game Controllers"></canvas>
 
-    <!-- Controller Visualisierung -->
-    <details class="card hidden" id="pad-card" open>
-      <summary class="card-head">Controller-Visualisierung</summary>
-      <div class="card-body">
+            <svg class="pad-svg" viewBox="0 0 640 500" role="img"
+                 aria-label="Schematische Darstellung des XENSIV
+                             Game Controllers">
 
-      <div class="pad-stage">
-        <div class="pad-stage-head">
-          <div class="pad-stage-title-row">
-            <svg class="pad-stage-icon" viewBox="0 0 24 24"
-                 aria-hidden="true">
-              <path d="M7 7h10a5.5 5.5 0 0 1 5.5 5.5v1.2a3.3 3.3 0
-                       0 1-6.1 1.8L15.4 14H8.6l-1 1.5A3.3 3.3 0 0 1
-                       1.5 13.7v-1.2A5.5 5.5 0 0 1 7 7Z"/>
-              <circle class="pad-stage-icon-cut"
-                      cx="16.6" cy="11.4" r="1.15"/>
-              <circle class="pad-stage-icon-cut"
-                      cx="18.8" cy="13.4" r="1.15"/>
-              <rect class="pad-stage-icon-cut"
-                    x="5.2" y="11.6" width="5" height="1.5" rx="0.75"/>
-              <rect class="pad-stage-icon-cut"
-                    x="6.95" y="9.85" width="1.5" height="5" rx="0.75"/>
+              <defs>
+                <clipPath id="clip-l2">
+                  <rect x="175" y="18" width="40" height="68" rx="20"/>
+                </clipPath>
+                <clipPath id="clip-r2">
+                  <rect x="425" y="18" width="40" height="68" rx="20"/>
+                </clipPath>
+              </defs>
+
+              <!-- Trigger L2 / R2 -->
+              <g class="pad-btn pad-trigger" id="pad-6">
+                <text class="trigger-caption" x="195" y="8">L2</text>
+                <rect class="pad-shape trigger-shape"
+                      x="175" y="18" width="40" height="68" rx="20"/>
+                <rect class="trigger-fill" id="trigger-fill-6"
+                      x="175" y="86" width="40" height="0"
+                      clip-path="url(#clip-l2)"/>
+              </g>
+
+              <g class="pad-btn pad-trigger" id="pad-7">
+                <text class="trigger-caption" x="445" y="8">R2</text>
+                <rect class="pad-shape trigger-shape"
+                      x="425" y="18" width="40" height="68" rx="20"/>
+                <rect class="trigger-fill" id="trigger-fill-7"
+                      x="425" y="86" width="40" height="0"
+                      clip-path="url(#clip-r2)"/>
+              </g>
+
+              <!-- Schultertasten L1 / R1 -->
+              <g class="pad-btn" id="pad-4">
+                <rect class="pad-shape shoulder"
+                      x="158" y="92" width="74" height="30" rx="6"/>
+                <text class="pad-glyph pad-glyph-sm shoulder-glyph"
+                      x="195" y="107">L1</text>
+              </g>
+
+              <g class="pad-btn" id="pad-5">
+                <rect class="pad-shape shoulder"
+                      x="408" y="92" width="74" height="30" rx="6"/>
+                <text class="pad-glyph pad-glyph-sm shoulder-glyph"
+                      x="445" y="107">R1</text>
+              </g>
+
+              <!-- Gehäuse -->
+              <path class="pad-body" d="
+                M 150,128
+                L 490,128
+                L 545,160
+                L 566,250
+                L 556,330
+                L 520,430
+                L 470,462
+                L 424,462
+                L 396,420
+                L 372,372
+                L 348,356
+                L 292,356
+                L 268,372
+                L 244,420
+                L 216,462
+                L 170,462
+                L 120,430
+                L  84,330
+                L  74,250
+                L  95,160
+                Z"/>
+
+              <!-- OLED Display -->
+              <rect class="pcb-screen"
+                    x="272" y="158" width="96" height="62" rx="7"/>
+              <rect class="pcb-screen-inner"
+                    x="280" y="166" width="80" height="46" rx="3"/>
+              <rect class="pcb-screen-accent"
+                    x="286" y="172" width="30" height="10" rx="2"/>
+              <text class="pcb-label" x="320" y="236">XENSIV&#8482;</text>
+
+              <!-- Steuerkreuz -->
+              <g class="pad-btn" id="pad-12">
+                <circle class="pad-shape" cx="182" cy="168" r="22"/>
+                <text class="pad-glyph" x="182" y="168">&#8593;</text>
+              </g>
+              <g class="pad-btn" id="pad-14">
+                <circle class="pad-shape" cx="140" cy="208" r="22"/>
+                <text class="pad-glyph" x="140" y="208">&#8592;</text>
+              </g>
+              <g class="pad-btn" id="pad-15">
+                <circle class="pad-shape" cx="224" cy="208" r="22"/>
+                <text class="pad-glyph" x="224" y="208">&#8594;</text>
+              </g>
+              <g class="pad-btn" id="pad-13">
+                <circle class="pad-shape" cx="182" cy="248" r="22"/>
+                <text class="pad-glyph" x="182" y="248">&#8595;</text>
+              </g>
+              <circle class="pcb-led" cx="182" cy="208" r="6"/>
+
+              <!-- Aktionstasten T / I / X / F -->
+              <g class="pad-btn" id="pad-3">
+                <circle class="pad-shape" cx="458" cy="168" r="22"/>
+                <text class="pad-glyph" x="458" y="168">T</text>
+              </g>
+              <g class="pad-btn" id="pad-2">
+                <circle class="pad-shape" cx="416" cy="208" r="22"/>
+                <text class="pad-glyph" x="416" y="208">I</text>
+              </g>
+              <g class="pad-btn" id="pad-1">
+                <circle class="pad-shape" cx="500" cy="208" r="22"/>
+                <text class="pad-glyph" x="500" y="208">X</text>
+              </g>
+              <g class="pad-btn" id="pad-0">
+                <circle class="pad-shape" cx="458" cy="248" r="22"/>
+                <text class="pad-glyph" x="458" y="248">F</text>
+              </g>
+              <circle class="pcb-dot" cx="458" cy="208" r="5"/>
+
+              <!-- Sticks -->
+              <circle class="stick-well" cx="250" cy="295" r="45"/>
+              <g id="stick-left-move" class="stick-move">
+                <g class="pad-btn pad-stick" id="pad-10">
+                  <circle class="pad-shape" cx="250" cy="295" r="39"/>
+                  <circle class="stick-inner" cx="250" cy="295" r="22"/>
+                </g>
+              </g>
+
+              <circle class="stick-well" cx="390" cy="295" r="45"/>
+              <g id="stick-right-move" class="stick-move">
+                <g class="pad-btn pad-stick" id="pad-11">
+                  <circle class="pad-shape" cx="390" cy="295" r="39"/>
+                  <circle class="stick-inner" cx="390" cy="295" r="22"/>
+                </g>
+              </g>
+
+              <!-- CONTROL Taste -->
+              <text class="pcb-label" x="320" y="264">CONTROL</text>
+              <g class="pad-btn" id="pad-16">
+                <circle class="pad-shape" cx="320" cy="294" r="18"/>
+                <text class="pad-glyph pad-glyph-sm"
+                      x="320" y="294">&#9881;</text>
+              </g>
+
+              <!-- Aufdrucke -->
+              <text class="pcb-brand" x="174" y="394">Infineon</text>
+              <text class="pcb-brand" x="466" y="386">XENSIV&#8482;</text>
+              <text class="pcb-label" x="466" y="406">Game Controller</text>
             </svg>
-            <span class="pad-stage-title">
-              Controller-Visualisierer
-            </span>
           </div>
-          <span class="pad-stage-device" id="pad-device">
-            &ndash;
-          </span>
-        </div>
 
-        <svg class="pad-svg" viewBox="0 0 640 500"
-             role="img"
-             aria-label="Schematische Darstellung des XENSIV
-                         Game Controllers">
-
-          <defs>
-            <clipPath id="clip-l2">
-              <rect x="175" y="18" width="40" height="68" rx="20"/>
-            </clipPath>
-            <clipPath id="clip-r2">
-              <rect x="425" y="18" width="40" height="68" rx="20"/>
-            </clipPath>
-          </defs>
-
-          <!-- Trigger L2 / R2 -->
-          <g class="pad-btn pad-trigger" id="pad-6">
-            <text class="trigger-caption" x="195" y="8">L2</text>
-            <rect class="pad-shape trigger-shape"
-                  x="175" y="18" width="40" height="68" rx="20"/>
-            <rect class="trigger-fill" id="trigger-fill-6"
-                  x="175" y="86" width="40" height="0"
-                  clip-path="url(#clip-l2)"/>
-          </g>
-
-          <g class="pad-btn pad-trigger" id="pad-7">
-            <text class="trigger-caption" x="445" y="8">R2</text>
-            <rect class="pad-shape trigger-shape"
-                  x="425" y="18" width="40" height="68" rx="20"/>
-            <rect class="trigger-fill" id="trigger-fill-7"
-                  x="425" y="86" width="40" height="0"
-                  clip-path="url(#clip-r2)"/>
-          </g>
-
-          <!-- Schultertasten L1 / R1 -->
-          <g class="pad-btn" id="pad-4">
-            <rect class="pad-shape shoulder"
-                  x="158" y="92" width="74" height="30" rx="6"/>
-            <text class="pad-glyph pad-glyph-sm shoulder-glyph"
-                  x="195" y="107">L1</text>
-          </g>
-
-          <g class="pad-btn" id="pad-5">
-            <rect class="pad-shape shoulder"
-                  x="408" y="92" width="74" height="30" rx="6"/>
-            <text class="pad-glyph pad-glyph-sm shoulder-glyph"
-                  x="445" y="107">R1</text>
-          </g>
-
-          <!-- Gehäuse -->
-          <path class="pad-body" d="
-            M 150,128
-            L 490,128
-            L 545,160
-            L 566,250
-            L 556,330
-            L 520,430
-            L 470,462
-            L 424,462
-            L 396,420
-            L 372,372
-            L 348,356
-            L 292,356
-            L 268,372
-            L 244,420
-            L 216,462
-            L 170,462
-            L 120,430
-            L  84,330
-            L  74,250
-            L  95,160
-            Z"/>
-
-          <!-- OLED Display -->
-          <rect class="pcb-screen"
-                x="272" y="158" width="96" height="62" rx="7"/>
-          <rect class="pcb-screen-inner"
-                x="280" y="166" width="80" height="46" rx="3"/>
-          <rect class="pcb-screen-accent"
-                x="286" y="172" width="30" height="10" rx="2"/>
-          <text class="pcb-label" x="320" y="236">XENSIV&#8482;</text>
-
-          <!-- Steuerkreuz -->
-          <g class="pad-btn" id="pad-12">
-            <circle class="pad-shape" cx="182" cy="168" r="22"/>
-            <text class="pad-glyph" x="182" y="168">&#8593;</text>
-          </g>
-          <g class="pad-btn" id="pad-14">
-            <circle class="pad-shape" cx="140" cy="208" r="22"/>
-            <text class="pad-glyph" x="140" y="208">&#8592;</text>
-          </g>
-          <g class="pad-btn" id="pad-15">
-            <circle class="pad-shape" cx="224" cy="208" r="22"/>
-            <text class="pad-glyph" x="224" y="208">&#8594;</text>
-          </g>
-          <g class="pad-btn" id="pad-13">
-            <circle class="pad-shape" cx="182" cy="248" r="22"/>
-            <text class="pad-glyph" x="182" y="248">&#8595;</text>
-          </g>
-          <circle class="pcb-led" cx="182" cy="208" r="6"/>
-
-          <!-- Aktionstasten T / I / X / F -->
-          <g class="pad-btn" id="pad-3">
-            <circle class="pad-shape" cx="458" cy="168" r="22"/>
-            <text class="pad-glyph" x="458" y="168">T</text>
-          </g>
-          <g class="pad-btn" id="pad-2">
-            <circle class="pad-shape" cx="416" cy="208" r="22"/>
-            <text class="pad-glyph" x="416" y="208">I</text>
-          </g>
-          <g class="pad-btn" id="pad-1">
-            <circle class="pad-shape" cx="500" cy="208" r="22"/>
-            <text class="pad-glyph" x="500" y="208">X</text>
-          </g>
-          <g class="pad-btn" id="pad-0">
-            <circle class="pad-shape" cx="458" cy="248" r="22"/>
-            <text class="pad-glyph" x="458" y="248">F</text>
-          </g>
-          <circle class="pcb-dot" cx="458" cy="208" r="5"/>
-
-          <!-- Sticks -->
-          <circle class="stick-well" cx="250" cy="295" r="45"/>
-          <g id="stick-left-move" class="stick-move">
-            <g class="pad-btn pad-stick" id="pad-10">
-              <circle class="pad-shape" cx="250" cy="295" r="39"/>
-              <circle class="stick-inner" cx="250" cy="295" r="22"/>
-            </g>
-          </g>
-
-          <circle class="stick-well" cx="390" cy="295" r="45"/>
-          <g id="stick-right-move" class="stick-move">
-            <g class="pad-btn pad-stick" id="pad-11">
-              <circle class="pad-shape" cx="390" cy="295" r="39"/>
-              <circle class="stick-inner" cx="390" cy="295" r="22"/>
-            </g>
-          </g>
-
-          <!-- CONTROL Taste -->
-          <text class="pcb-label" x="320" y="264">CONTROL</text>
-          <g class="pad-btn" id="pad-16">
-            <circle class="pad-shape" cx="320" cy="294" r="18"/>
-            <text class="pad-glyph pad-glyph-sm"
-                  x="320" y="294">&#9881;</text>
-          </g>
-
-          <!-- Aufdrucke -->
-          <text class="pcb-brand" x="174" y="394">Infineon</text>
-          <text class="pcb-brand" x="466" y="386">XENSIV&#8482;</text>
-          <text class="pcb-label" x="466" y="406">Game Controller</text>
-        </svg>
-
-        <div class="pad-legend">
-          <span class="pad-legend-item is-on">Taste gedrückt</span>
-          <span class="pad-legend-item">Warte auf Eingabe</span>
-        </div>
-      </div>
-
-      </div>
-    </details>
-
-    <!-- Achsen -->
-    <details class="card hidden" id="axes-card" open>
-      <summary class="card-head">Achsen &amp; Joysticks</summary>
-      <div class="card-body">
-
-      <div class="joystick-grid">
-
-        <!-- Linker Joystick -->
-        <div class="joystick-row">
-          <div class="joystick-label">Links</div>
-          <div class="joystick-container">
-            <canvas id="joystick-left"
-                    width="120"
-                    height="120">
-            </canvas>
+          <!-- Unter der Zeichnung steht nur, was rechts nicht ohnehin schon
+               steht. Die Stick- und Tastenwerte stehen dort; hier bleibt der
+               Name des Geraets, der in einer Kopfzeile abschneiden wuerde. -->
+          <div class="stage-readout">
+            <div class="stage-line">
+              <span>MODELL</span><strong id="stage-device">&ndash;</strong>
+            </div>
           </div>
-          <div class="axis-values">
-            <span>X: <b id="axis-0">0.00</b></span>
-            <span>Y: <b id="axis-1">0.00</b></span>
+        </aside>
+
+        <section class="stage-main">
+          <div class="section-heading">
+            <div><span class="eyebrow">LIVE-TELEMETRIE</span><h1>Eingabewerte</h1></div>
+            <span class="section-index">01</span>
           </div>
-        </div>
 
-        <!-- Rechter Joystick -->
-        <div class="joystick-row">
-          <div class="joystick-label">Rechts</div>
-          <div class="joystick-container">
-            <canvas id="joystick-right"
-                    width="120"
-                    height="120">
-            </canvas>
+          <div class="toolbar">
+            <span class="live-state" id="live-state"><i></i><span id="live-state-text">Nicht verbunden</span></span>
+            <div class="stream-controls">
+              <span class="rate-actual">erreicht <b id="poll-actual">&ndash;</b> Hz</span>
+            </div>
           </div>
-          <div class="axis-values">
-            <span>X: <b id="axis-2">0.00</b></span>
-            <span>Y: <b id="axis-3">0.00</b></span>
+
+          <div class="metric-grid">
+            <div class="metric-card">
+              <span>STICK LINKS</span><strong class="metric-pair" id="metric-left">-- / --</strong><small>Achse 0 / 1</small>
+            </div>
+            <div class="metric-card">
+              <span>STICK RECHTS</span><strong class="metric-pair" id="metric-right">-- / --</strong><small>Achse 2 / 3</small>
+            </div>
+            <!-- Schulter und Trigger kennen an diesem Geraet nur zwei
+                 Zustaende. Eine Zahl mit zwei Nachkommastellen behauptete eine
+                 Aufloesung, die es nicht gibt - also zeigt die Karte, ob
+                 gedrueckt wird oder nicht. -->
+            <div class="metric-card">
+              <span>SCHULTER L1 / R1</span>
+              <strong class="state-pair">
+                <i class="state-chip" id="state-4">L1</i><i class="state-chip" id="state-5">R1</i>
+              </strong>
+              <small>gedr&uuml;ckt oder frei</small>
+            </div>
+            <div class="metric-card">
+              <span>TRIGGER L2 / R2</span>
+              <strong class="state-pair">
+                <i class="state-chip" id="state-6">L2</i><i class="state-chip" id="state-7">R2</i>
+              </strong>
+              <small>gedr&uuml;ckt oder frei</small>
+            </div>
+            <div class="metric-card">
+              <span>TASTEN AKTIV</span><strong id="metric-pressed">--</strong><small>gleichzeitig gedr&uuml;ckt</small>
+            </div>
           </div>
-        </div>
 
+          <h2 class="subhead">Joysticks</h2>
+          <div class="joystick-grid">
+            <div class="joystick-card">
+              <span class="joystick-title">LINKS</span>
+              <canvas id="joystick-left" width="150" height="150"
+                      aria-label="Auslenkung des linken Joysticks"></canvas>
+              <div class="axis-values">
+                <span>X <b id="axis-0">+0.00</b></span>
+                <span>Y <b id="axis-1">+0.00</b></span>
+              </div>
+            </div>
+            <div class="joystick-card">
+              <span class="joystick-title">RECHTS</span>
+              <canvas id="joystick-right" width="150" height="150"
+                      aria-label="Auslenkung des rechten Joysticks"></canvas>
+              <div class="axis-values">
+                <span>X <b id="axis-2">+0.00</b></span>
+                <span>Y <b id="axis-3">+0.00</b></span>
+              </div>
+            </div>
+          </div>
+
+          <h2 class="subhead">Achsen</h2>
+          <div class="axis-list" id="axes-bars"></div>
+
+          <h2 class="subhead">Tasten</h2>
+          <div class="buttons-grid" id="buttons-grid"></div>
+
+          <div class="subhead-row">
+            <h2 class="subhead">Ereignisprotokoll</h2>
+            <button id="clear-log" class="text-button">Leeren</button>
+          </div>
+          <div class="log-box" id="log-box" data-empty="Noch keine Ereignisse."></div>
+
+          <p class="hint">
+            Verbinden Sie den Controller per USB oder Bluetooth und dr&uuml;cken
+            Sie eine beliebige Taste &ndash; der Browser gibt das Ger&auml;t erst
+            nach dieser Eingabe frei. Unterst&uuml;tzt werden Ger&auml;te mit
+            16 Tasten und 4 Achsen.
+          </p>
+        </section>
       </div>
-
-      <!-- Alle Achsen Balken -->
-      <div class="axes-bars" id="axes-bars"></div>
-
-      </div>
-    </details>
-
-    <!-- Buttons -->
-    <details class="card hidden" id="buttons-card">
-      <summary class="card-head">Digitale &amp; analoge Tasten</summary>
-      <div class="card-body">
-        <div class="buttons-grid" id="buttons-grid"></div>
-      </div>
-    </details>
-
-    <!-- Raw Data Log -->
-    <details class="card hidden" id="log-card">
-      <summary class="card-head">Ereignisprotokoll</summary>
-      <div class="card-body">
-        <div class="log-box" id="log-box"></div>
-        <button class="clear-btn" onclick="clearLog()">
-          Protokoll leeren
-        </button>
-      </div>
-    </details>
-
+    </div>
   </main>
 
-  <!-- ─── Fußzeile ───────────────────────────────── -->
-  <footer class="ifx-footer">
-    <div class="ifx-footer-inner">
-      <p class="ifx-footer-claim">
-        Part of your life. Part of tomorrow.
-      </p>
-      <p class="ifx-footer-note">
-        Diese Anwendung ist eine technische Demonstration und
-        dient ausschließlich Präsentationszwecken.
-      </p>
-      <p class="ifx-footer-legal">
-        &copy; 2026 Infineon Technologies AG &middot;
-        Alle Rechte vorbehalten
-      </p>
-    </div>
-  </footer>
+  <!-- Die Fassung ist die laufende Nummer des Stands, aus dem diese Seite
+       stammt. Sie ist zugleich die Nummer, die Stil und Skript aus dem
+       Zwischenspeicher holt. -->
+  <small class="app-version">v1</small>
 
-  <script src="script.js"></script>
+  <script src="./script.js?v=1"></script>
 </body>
 </html>

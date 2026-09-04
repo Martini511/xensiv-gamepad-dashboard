@@ -1,263 +1,13 @@
-// ─── Variablen ────────────────────────────────────────
+/* XENSIV™ Game Controller Dashboard
+   Der Controller kennt keine Einstellungen. Das Skript hat deshalb nur eine
+   Aufgabe: die Werte des Geräts lesen und an zwei Stellen zeigen – als
+   Zeichnung auf der dunklen Bühne und als Zahlen daneben. */
 
-let animationId     = null;
-let activeGamepad   = null;
-let lastButtonState = [];
-let initialized     = false;
+// ─── Gerätesteckbrief ─────────────────────────────────
+// Nur Geräte mit diesem Profil werden angenommen.
 
-// ─── Infineon Farbpalette ─────────────────────────────
-
-const IFX = {
-  ocean:     '#12a190',
-  oceanSoft: 'rgba(18, 161, 144, 0.35)',
-  orange:    '#f0803c',
-  grey300:   '#3a3d42',
-  grey100:   '#1f2124',
-  grey500:   '#6d6f75'
-};
-
-// ─── Beim Laden ───────────────────────────────────────
-
-window.addEventListener('load', () => {
-  initNavigation();
-  scanForGamepads();
-});
-
-window.addEventListener('gamepadconnected', (event) => {
-  console.log('Verbunden:', event.gamepad.id);
-  scanForGamepads();
-});
-
-window.addEventListener('gamepaddisconnected', (event) => {
-  if (activeGamepad === event.gamepad.index) {
-    handleDisconnect();
-  }
-});
-
-// ─── Navigation ───────────────────────────────────────
-
-const SECTION_IDS = [
-  'pad-card', 'axes-card', 'buttons-card', 'log-card'
-];
-
-function initNavigation() {
-  const links = document.querySelectorAll('.ifx-nav-item');
-
-  links.forEach((link) => {
-    link.addEventListener('click', (event) => {
-      const id     = link.getAttribute('href').slice(1);
-      const target = document.getElementById(id);
-      if (!target) return;
-
-      event.preventDefault();
-
-      // Nur den gewählten Reiter offen lassen
-      SECTION_IDS.forEach((sectionId) => {
-        const section = document.getElementById(sectionId);
-        if (section) section.open = (sectionId === id);
-      });
-
-      links.forEach(item =>
-        item.classList.toggle('is-active', item === link));
-
-      target.scrollIntoView({ behavior: 'smooth', block: 'start' });
-    });
-  });
-}
-
-// ─── Alle Controller anzeigen zur Auswahl ─────────────
-
-// ─── Aktiv nach Gamepads suchen ───────────────────────
-
-// Nur Geräte mit diesem Profil werden akzeptiert
 const REQUIRED_BUTTONS = 16;
 const REQUIRED_AXES    = 4;
-
-function isSupportedGamepad(gp) {
-  return gp.buttons.length === REQUIRED_BUTTONS
-      && gp.axes.length    === REQUIRED_AXES;
-}
-
-function scanForGamepads() {
-  const gamepads = navigator.getGamepads();
-  const found    = [];
-
-  for (let i = 0; i < gamepads.length; i++) {
-    const gp = gamepads[i];
-    if (gp === null) continue;
-
-    if (!isSupportedGamepad(gp)) {
-      console.log(
-        'Nicht unterstütztes Gerät:', gp.id,
-        `(${gp.buttons.length} Tasten / ${gp.axes.length} Achsen)`
-      );
-      continue;
-    }
-
-    found.push(gp);
-    console.log('Controller gefunden:', gp.id);
-  }
-
-  if (found.length === 0) {
-    setStatus(false, 'Kein kompatibler Controller gefunden');
-    return;
-  }
-
-  // Ersten gültigen Controller nehmen
-  initController(found[0]);
-}
-
-// ─── Auswahl Dialog ───────────────────────────────────
-
-function showControllerSelection(gamepads) {
-  // Status Card leeren
-  const statusCard = document.getElementById('status-card');
-
-  statusCard.innerHTML = `
-    <p class="select-title">Eingabegerät auswählen</p>
-    <p class="select-subtitle">
-      Es wurden mehrere Geräte erkannt.
-      Bitte wählen Sie das gewünschte Gerät aus.
-    </p>
-    <div id="controller-list"></div>
-  `;
-
-  const list = document.getElementById('controller-list');
-
-  gamepads.forEach((gp) => {
-    const item     = document.createElement('div');
-    item.className = 'controller-item';
-
-    const info       = document.createElement('div');
-    info.className   = 'ctrl-item-info';
-
-    const index      = document.createElement('span');
-    index.className  = 'ctrl-item-index';
-    index.textContent = `Index ${gp.index}`;
-
-    const name       = document.createElement('span');
-    name.className   = 'ctrl-item-name';
-    name.textContent = gp.id;
-
-    const details    = document.createElement('span');
-    details.className = 'ctrl-item-details';
-    details.textContent =
-      `${gp.buttons.length} Tasten | ${gp.axes.length} Achsen`;
-
-    info.append(index, name, details);
-
-    const button       = document.createElement('button');
-    button.className   = 'select-btn';
-    button.textContent = 'Verbinden';
-    button.addEventListener('click',
-      () => selectController(gp.index));
-
-    item.append(info, button);
-    list.appendChild(item);
-  });
-}
-
-// ─── Controller auswählen ─────────────────────────────
-
-function selectController(index) {
-  const gamepads = navigator.getGamepads();
-  const gp       = gamepads[index];
-
-  if (gp && isSupportedGamepad(gp)) {
-    initController(gp);
-  }
-}
-
-// ─── Controller initialisieren ────────────────────────
-
-function initController(gp) {
-  if (initialized && activeGamepad === gp.index) return;
-
-  console.log('Initialisiere:', gp.id);
-
-  activeGamepad = gp.index;
-  initialized   = true;
-
-  // Status Card zurücksetzen
-  document.getElementById('status-card').innerHTML = `
-    <div class="status-row">
-      <div class="status-dot connected" id="status-dot"></div>
-      <span id="status-text"></span>
-    </div>
-    <p class="hint">
-      Die Datenerfassung läuft. Alle Werte werden in Echtzeit
-      aktualisiert.
-    </p>
-  `;
-
-  document.getElementById('status-text')
-          .textContent = `Verbunden – ${gp.id}`;
-
-  showCards();
-
-  const padDevice = document.getElementById('pad-device');
-  if (padDevice) padDevice.textContent = gp.id;
-
-  createButtonElements(gp.buttons.length);
-  createAxesBars(gp.axes.length);
-
-  addLog(`[OK]  Gerät verbunden: ${gp.id}`);
-  addLog(`      Tasten: ${gp.buttons.length} | Achsen: ${gp.axes.length}`);
-
-  if (!animationId) startGameLoop();
-}
-
-// ─── Disconnect ───────────────────────────────────────
-
-function handleDisconnect() {
-  addLog('[!]   Verbindung zum Gerät getrennt');
-
-  activeGamepad = null;
-  initialized   = false;
-
-  if (animationId) {
-    cancelAnimationFrame(animationId);
-    animationId = null;
-  }
-
-  // Status Card zurücksetzen
-  document.getElementById('status-card').innerHTML = `
-    <div class="status-row">
-      <div class="status-dot disconnected" id="status-dot"></div>
-      <span id="status-text">Verbindung getrennt</span>
-    </div>
-    <p class="hint">
-      Bitte verbinden Sie das Gerät erneut.
-    </p>
-  `;
-
-  hideCards();
-}
-
-// ─── Game Loop ────────────────────────────────────────
-
-function startGameLoop() {
-  function loop() {
-    if (activeGamepad === null) return;
-
-    const gamepads = navigator.getGamepads();
-    const gp       = gamepads[activeGamepad];
-
-    if (!gp) {
-      handleDisconnect();
-      return;
-    }
-
-    updateButtons(gp.buttons);
-    updateAxes(gp.axes);
-
-    animationId = requestAnimationFrame(loop);
-  }
-
-  animationId = requestAnimationFrame(loop);
-}
-
-// ─── Buttons ──────────────────────────────────────────
 
 const BUTTON_NAMES = {
   0: 'F', 1: 'X', 2: 'I', 3: 'T',
@@ -268,51 +18,260 @@ const BUTTON_NAMES = {
   16: 'Control'
 };
 
-// Analoge Trigger in der Controller-Grafik
+const AXIS_NAMES = {
+  0: 'Links X', 1: 'Links Y',
+  2: 'Rechts X', 3: 'Rechts Y'
+};
+
+// Analoge Trigger in der Zeichnung: Fassung bleibt stehen, gefüllt wird
+// von unten nach Wert.
 const TRIGGER_GEOMETRY = {
   6: { y: 18, height: 68 },
   7: { y: 18, height: 68 }
 };
 
+// Farben der Bühne, damit die Leinwände dieselbe Sprache sprechen wie
+// das Stilblatt.
+const PALETTE = {
+  accent:  '#0a8a7c',
+  soft:    '#12a190',
+  ghost:   'rgba(10, 138, 124, 0.28)',
+  signal:  '#eb7000',
+  line:    '#dfe4e4',
+  muted:   '#6b7a7d',
+  neutral: '#c3cacb'
+};
+
+// Unterhalb dieser Auslenkung gilt eine Achse als in Ruhe. Der Wert trennt
+// das Zittern der Mechanik von einer Absicht.
+const AXIS_DEADZONE = 0.12;
+
+const SEARCH_INTERVAL = 400;
+const RATE_WINDOW     = 500;
+const LOG_LIMIT       = 300;
+
+// ─── Zustand ──────────────────────────────────────────
+
+let animationId     = null;
+let searchTimer     = null;
+let activeGamepad   = null;
+let lastButtonState = [];
+let frameCount      = 0;
+let rateStartedAt   = 0;
+
+const byId = (id) => document.getElementById(id);
+
+// ─── Start ────────────────────────────────────────────
+
+window.addEventListener('load', () => {
+  buildAxisBars(REQUIRED_AXES);
+  buildButtonItems(REQUIRED_BUTTONS);
+
+  byId('connect-button').addEventListener('click', toggleSearch);
+  byId('clear-log').addEventListener('click', clearLog);
+
+  drawJoystick('joystick-left', 0, 0);
+  drawJoystick('joystick-right', 0, 0);
+
+  startSearch();
+});
+
+// Der Browser gibt ein Gamepad erst frei, nachdem daran eine Taste gedrückt
+// wurde. Das Ereignis ist deshalb der verlässlichere Weg als jede Abfrage –
+// die laufende Suche bleibt trotzdem, weil manche Treiber es auslassen.
+window.addEventListener('gamepadconnected', () => scanForGamepads());
+
+window.addEventListener('gamepaddisconnected', (event) => {
+  if (activeGamepad === event.gamepad.index) handleDisconnect();
+});
+
+// ─── Suche ────────────────────────────────────────────
+
+function toggleSearch() {
+  if (activeGamepad !== null) {
+    releaseGamepad('Verbindung gelöst');
+    return;
+  }
+
+  searchTimer === null ? startSearch() : stopSearch();
+}
+
+function startSearch() {
+  if (searchTimer !== null) return;
+
+  setConnectionState('searching', 'Suche läuft', 'Suche abbrechen');
+  setLiveState(false, 'Warte auf Tastendruck am Controller');
+
+  searchTimer = setInterval(scanForGamepads, SEARCH_INTERVAL);
+  scanForGamepads();
+}
+
+function stopSearch() {
+  if (searchTimer === null) return;
+
+  clearInterval(searchTimer);
+  searchTimer = null;
+
+  setConnectionState('offline', 'Nicht verbunden', 'Controller suchen');
+  setLiveState(false, 'Nicht verbunden');
+}
+
+function isSupportedGamepad(gamepad) {
+  return gamepad.buttons.length === REQUIRED_BUTTONS
+      && gamepad.axes.length    === REQUIRED_AXES;
+}
+
+function scanForGamepads() {
+  if (activeGamepad !== null) return;
+
+  for (const gamepad of navigator.getGamepads()) {
+    if (gamepad && isSupportedGamepad(gamepad)) {
+      initController(gamepad);
+      return;
+    }
+  }
+}
+
+// ─── Verbindung ───────────────────────────────────────
+
+function initController(gamepad) {
+  if (searchTimer !== null) {
+    clearInterval(searchTimer);
+    searchTimer = null;
+  }
+
+  activeGamepad = gamepad.index;
+
+  // Der Ausgangsstand ist "nicht gedrückt". Ohne ihn läse der erste Durchlauf
+  // aus jeder unbelegten Stelle eine Änderung heraus und schriebe für jede
+  // Taste ein Loslassen ins Protokoll, das nie stattgefunden hat.
+  lastButtonState = new Array(gamepad.buttons.length).fill(false);
+
+  setConnectionState('online', 'Verbunden', 'Verbindung lösen');
+  setLiveState(true, 'Datenerfassung läuft');
+
+  const device = byId('stage-device');
+  device.textContent = gamepad.id;
+  device.title       = gamepad.id;
+
+  buildAxisBars(gamepad.axes.length);
+  buildButtonItems(gamepad.buttons.length);
+
+  addLog(`[OK]  Gerät verbunden: ${gamepad.id}`);
+  addLog(`      Tasten: ${gamepad.buttons.length} | Achsen: ${gamepad.axes.length}`);
+
+  startPolling();
+}
+
+function handleDisconnect() {
+  releaseGamepad('Verbindung zum Gerät getrennt');
+  startSearch();
+}
+
+function releaseGamepad(message) {
+  if (activeGamepad === null) return;
+
+  addLog(`[!]   ${message}`);
+
+  activeGamepad = null;
+
+  if (animationId !== null) {
+    cancelAnimationFrame(animationId);
+    animationId = null;
+  }
+
+  const device = byId('stage-device');
+  device.textContent = '–';
+  device.removeAttribute('title');
+
+  setConnectionState('offline', 'Nicht verbunden', 'Controller suchen');
+  setLiveState(false, 'Nicht verbunden');
+  resetReadouts();
+}
+
+// ─── Abtastung ────────────────────────────────────────
+// `getGamepads` liefert bei jedem Aufruf eine neue Momentaufnahme; ein
+// festgehaltenes Gamepad-Objekt veraltet sofort.
+
+function startPolling() {
+  frameCount    = 0;
+  rateStartedAt = performance.now();
+
+  function loop() {
+    if (activeGamepad === null) return;
+
+    const gamepad = navigator.getGamepads()[activeGamepad];
+
+    if (!gamepad) {
+      handleDisconnect();
+      return;
+    }
+
+    updateButtons(gamepad.buttons);
+    updateAxes(gamepad.axes);
+    updateRate();
+
+    animationId = requestAnimationFrame(loop);
+  }
+
+  animationId = requestAnimationFrame(loop);
+}
+
+function updateRate() {
+  frameCount += 1;
+
+  const elapsed = performance.now() - rateStartedAt;
+  if (elapsed < RATE_WINDOW) return;
+
+  const hertz = Math.round((frameCount * 1000) / elapsed);
+  byId('poll-actual').textContent = hertz;
+
+  frameCount    = 0;
+  rateStartedAt = performance.now();
+}
+
+// ─── Tasten ───────────────────────────────────────────
+
 function updateButtons(buttons) {
+  let pressedCount = 0;
+
   buttons.forEach((button, index) => {
     const isPressed = button.pressed;
-    const value     = button.value;
+    if (isPressed) pressedCount += 1;
 
-    updatePadButton(index, isPressed, value);
+    updatePadButton(index, isPressed, button.value);
 
-    const element = document.getElementById(`btn-${index}`);
-    if (!element) return;
+    const item = byId(`btn-${index}`);
+    if (item) {
+      item.querySelector('.btn-value').textContent = button.value.toFixed(2);
+      item.classList.toggle('is-pressed', isPressed);
+    }
 
-    element.querySelector('.btn-value')
-           .textContent = value.toFixed(2);
-
-    isPressed
-      ? element.classList.add('pressed')
-      : element.classList.remove('pressed');
+    // Schulter und Trigger haben zusätzlich eine Marke in den Messwerten.
+    // Wo es keine gibt, greift die Zeile ins Leere und tut nichts.
+    const chip = byId(`state-${index}`);
+    if (chip) chip.classList.toggle('is-on', isPressed);
 
     if (lastButtonState[index] !== isPressed) {
       lastButtonState[index] = isPressed;
       const name = BUTTON_NAMES[index] || `Btn ${index}`;
-      addLog(
-        isPressed
-          ? `[IN]  ${name} — gedrückt`
-          : `[IN]  ${name} — losgelassen`
-      );
+      addLog(isPressed
+        ? `[IN]  ${name} — gedrückt`
+        : `[IN]  ${name} — losgelassen`);
     }
   });
+
+  byId('metric-pressed').textContent = pressedCount;
 }
 
-// ─── Controller-Grafik ───────────────────────────────
-
 function updatePadButton(index, isPressed, value) {
-  const pad = document.getElementById(`pad-${index}`);
+  const pad = byId(`pad-${index}`);
   if (!pad) return;
 
   pad.classList.toggle('is-pressed', isPressed);
 
   const geometry = TRIGGER_GEOMETRY[index];
-  const fill     = document.getElementById(`trigger-fill-${index}`);
+  const fill     = byId(`trigger-fill-${index}`);
 
   if (geometry && fill) {
     const filled = geometry.height * value;
@@ -321,8 +280,62 @@ function updatePadButton(index, isPressed, value) {
   }
 }
 
+// ─── Achsen ───────────────────────────────────────────
+// Achswerte tragen ihr Vorzeichen immer mit sich. Ohne das Pluszeichen wäre
+// eine Zahl je nach Richtung ein Zeichen kürzer, und der zweite Wert eines
+// Paares spränge bei jeder Bewegung um eine Stelle hin und her.
+
+function signed(value) {
+  const text = value.toFixed(2);
+  if (text === '-0.00') return '+0.00';
+  return text.startsWith('-') ? text : `+${text}`;
+}
+
+function updateAxes(axes) {
+  axes.forEach((value, index) => {
+    const text = signed(value);
+
+    const stickReadout = byId(`axis-${index}`);
+    if (stickReadout) stickReadout.textContent = text;
+
+    const listReadout = byId(`axis-value-${index}`);
+    if (listReadout) listReadout.textContent = text;
+
+    const fill = byId(`axis-fill-${index}`);
+    if (fill) {
+      const percent = Math.abs(value) * 50;
+      fill.style.width      = `${percent}%`;
+      fill.style.left       = value >= 0 ? '50%' : `${50 - percent}%`;
+      fill.style.background = value > AXIS_DEADZONE
+        ? PALETTE.soft
+        : value < -AXIS_DEADZONE
+          ? PALETTE.signal
+          : PALETTE.neutral;
+    }
+
+    const item = byId(`axis-item-${index}`);
+    if (item) {
+      item.classList.toggle('is-active', Math.abs(value) > AXIS_DEADZONE);
+    }
+  });
+
+  const leftX  = axes[0] || 0;
+  const leftY  = axes[1] || 0;
+  const rightX = axes[2] || 0;
+  const rightY = axes[3] || 0;
+
+  byId('metric-left').textContent  = `${signed(leftX)} / ${signed(leftY)}`;
+  byId('metric-right').textContent = `${signed(rightX)} / ${signed(rightY)}`;
+
+  drawJoystick('joystick-left', leftX, leftY);
+  drawJoystick('joystick-right', rightX, rightY);
+
+  updateStick('stick-left-move', leftX, leftY);
+  updateStick('stick-right-move', rightX, rightY);
+}
+
 function updateStick(elementId, x, y) {
-  const stick = document.getElementById(elementId);
+  const stick = byId(elementId);
   if (!stick) return;
 
   stick.setAttribute(
@@ -331,156 +344,204 @@ function updateStick(elementId, x, y) {
   );
 }
 
-// ─── Achsen ───────────────────────────────────────────
-
-const AXIS_NAMES = {
-  0: 'Links X', 1: 'Links Y',
-  2: 'Rechts X', 3: 'Rechts Y'
-};
-
-function updateAxes(axes) {
-  axes.forEach((value, index) => {
-    const valueEl = document.getElementById(`axis-${index}`);
-    if (valueEl) valueEl.textContent = value.toFixed(2);
-
-    const fill = document.getElementById(`axis-fill-${index}`);
-    if (fill) {
-      const percent      = Math.abs(value) * 50;
-      fill.style.width   = percent + '%';
-      fill.style.left    = value >= 0
-        ? '50%'
-        : (50 - percent) + '%';
-      fill.style.background = value > 0.1
-        ? IFX.ocean
-        : value < -0.1
-          ? IFX.orange
-          : IFX.grey500;
-    }
-  });
-
-  drawJoystick('joystick-left',  axes[0] || 0, axes[1] || 0);
-  drawJoystick('joystick-right', axes[2] || 0, axes[3] || 0);
-
-  updateStick('stick-left-move',  axes[0] || 0, axes[1] || 0);
-  updateStick('stick-right-move', axes[2] || 0, axes[3] || 0);
-}
-
-// ─── Joystick ─────────────────────────────────────────
+// ─── Joystick-Leinwand ────────────────────────────────
 
 function drawJoystick(canvasId, x, y) {
-  const canvas = document.getElementById(canvasId);
+  const canvas = byId(canvasId);
   if (!canvas) return;
 
-  const ctx    = canvas.getContext('2d');
-  const w      = canvas.width;
-  const h      = canvas.height;
-  const cx     = w / 2;
-  const cy     = h / 2;
-  const radius = (w / 2) - 10;
+  // Die Leinwand bekommt so viele Bildpunkte, wie die Anzeige hergibt.
+  // Ohne diesen Schritt bliebe der Kreis auf feinen Schirmen unscharf.
+  const ratio  = window.devicePixelRatio || 1;
+  const size   = canvas.clientWidth || canvas.width;
+  const pixels = Math.round(size * ratio);
 
-  ctx.clearRect(0, 0, w, h);
+  if (canvas.width !== pixels) {
+    canvas.width  = pixels;
+    canvas.height = pixels;
+  }
 
-  ctx.beginPath();
-  ctx.arc(cx, cy, radius, 0, Math.PI * 2);
-  ctx.strokeStyle = IFX.grey300;
-  ctx.lineWidth   = 2;
-  ctx.stroke();
+  const context = canvas.getContext('2d');
+  context.setTransform(ratio, 0, 0, ratio, 0, 0);
+  context.clearRect(0, 0, size, size);
 
-  ctx.beginPath();
-  ctx.moveTo(cx - radius, cy);
-  ctx.lineTo(cx + radius, cy);
-  ctx.moveTo(cx, cy - radius);
-  ctx.lineTo(cx, cy + radius);
-  ctx.strokeStyle = IFX.grey300;
-  ctx.lineWidth   = 1;
-  ctx.stroke();
+  const center = size / 2;
+  const radius = center - 12;
 
-  const dotX = cx + (x * radius);
-  const dotY = cy + (y * radius);
+  context.beginPath();
+  context.arc(center, center, radius, 0, Math.PI * 2);
+  context.strokeStyle = PALETTE.line;
+  context.lineWidth   = 1;
+  context.stroke();
 
-  ctx.beginPath();
-  ctx.moveTo(cx, cy);
-  ctx.lineTo(dotX, dotY);
-  ctx.strokeStyle = IFX.oceanSoft;
-  ctx.lineWidth   = 2;
-  ctx.stroke();
+  context.beginPath();
+  context.moveTo(center - radius, center);
+  context.lineTo(center + radius, center);
+  context.moveTo(center, center - radius);
+  context.lineTo(center, center + radius);
+  context.strokeStyle = PALETTE.line;
+  context.stroke();
 
-  ctx.beginPath();
-  ctx.arc(dotX, dotY, 11, 0, Math.PI * 2);
-  ctx.fillStyle = IFX.ocean;
-  ctx.fill();
+  const dotX = center + x * radius;
+  const dotY = center + y * radius;
 
-  ctx.beginPath();
-  ctx.arc(cx, cy, 4, 0, Math.PI * 2);
-  ctx.fillStyle = IFX.grey500;
-  ctx.fill();
+  context.beginPath();
+  context.moveTo(center, center);
+  context.lineTo(dotX, dotY);
+  context.strokeStyle = PALETTE.ghost;
+  context.lineWidth   = 2;
+  context.stroke();
+
+  context.beginPath();
+  context.arc(dotX, dotY, 9, 0, Math.PI * 2);
+  context.fillStyle = PALETTE.accent;
+  context.fill();
+
+  context.beginPath();
+  context.arc(center, center, 3, 0, Math.PI * 2);
+  context.fillStyle = PALETTE.muted;
+  context.fill();
 }
 
-// ─── UI Helfer ────────────────────────────────────────
+// ─── Aufbau der Listen ────────────────────────────────
 
-function createButtonElements(count) {
-  const grid     = document.getElementById('buttons-grid');
-  grid.innerHTML = '';
-  for (let i = 0; i < count; i++) {
-    const name     = BUTTON_NAMES[i] || `Btn ${i}`;
-    grid.innerHTML += `
-      <div class="btn-item" id="btn-${i}">
-        <div class="btn-number">#${i}</div>
-        <div class="btn-name">${name}</div>
-        <div class="btn-value">0.00</div>
-      </div>`;
+function buildAxisBars(count) {
+  const list = byId('axes-bars');
+  list.textContent = '';
+
+  for (let index = 0; index < count; index += 1) {
+    const item = document.createElement('div');
+    item.className = 'axis-item';
+    item.id        = `axis-item-${index}`;
+
+    item.innerHTML = `
+      <div class="axis-head">
+        <span class="axis-name"><i class="axis-dot"></i></span>
+        <span class="axis-readout">Wert <b id="axis-value-${index}">+0.00</b></span>
+      </div>
+      <div class="axis-track"><div class="axis-fill" id="axis-fill-${index}"></div></div>
+      <div class="axis-scale"><span>-1.00</span><span>0</span><span>+1.00</span></div>`;
+
+    // Der Name kommt als Text und nicht als Auszeichnung in die Zeile: Er
+    // stammt zwar aus einer eigenen Liste, aber Gerätenamen sind nichts,
+    // dem man Auszeichnung zutrauen sollte.
+    item.querySelector('.axis-name')
+        .append(AXIS_NAMES[index] || `Achse ${index}`);
+
+    list.appendChild(item);
   }
 }
 
-function createAxesBars(count) {
-  const container     = document.getElementById('axes-bars');
-  container.innerHTML = '';
-  for (let i = 0; i < count; i++) {
-    const name          = AXIS_NAMES[i] || `Achse ${i}`;
-    container.innerHTML += `
-      <div class="axis-bar-row">
-        <span class="axis-bar-label">${name}</span>
-        <div class="axis-bar-track">
-          <div class="axis-bar-fill"
-               id="axis-fill-${i}"></div>
-        </div>
-      </div>`;
+function buildButtonItems(count) {
+  const grid = byId('buttons-grid');
+  grid.textContent = '';
+
+  for (let index = 0; index < count; index += 1) {
+    const item = document.createElement('div');
+    item.className = 'btn-item';
+    item.id        = `btn-${index}`;
+
+    const number = document.createElement('span');
+    number.className   = 'btn-number';
+    number.textContent = `#${index}`;
+
+    const name = document.createElement('span');
+    name.className   = 'btn-name';
+    name.textContent = BUTTON_NAMES[index] || `Btn ${index}`;
+
+    const value = document.createElement('span');
+    value.className   = 'btn-value';
+    value.textContent = '0.00';
+
+    item.append(number, name, value);
+    grid.appendChild(item);
   }
 }
 
-function showCards() {
-  ['pad-card', 'buttons-card', 'axes-card', 'log-card']
-    .forEach(id => document.getElementById(id)
-                           .classList.remove('hidden'));
+// ─── Anzeige zurücksetzen ─────────────────────────────
+
+function resetReadouts() {
+  const pair = '-- / --';
+
+  byId('metric-left').textContent    = pair;
+  byId('metric-right').textContent   = pair;
+  byId('metric-pressed').textContent = '--';
+  byId('poll-actual').textContent    = '–';
+
+  document.querySelectorAll('.state-chip')
+          .forEach((chip) => chip.classList.remove('is-on'));
+
+  document.querySelectorAll('.pad-btn.is-pressed')
+          .forEach((pad) => pad.classList.remove('is-pressed'));
+
+  Object.entries(TRIGGER_GEOMETRY).forEach(([index, geometry]) => {
+    const fill = byId(`trigger-fill-${index}`);
+    if (!fill) return;
+    fill.setAttribute('height', 0);
+    fill.setAttribute('y', geometry.y + geometry.height);
+  });
+
+  updateStick('stick-left-move', 0, 0);
+  updateStick('stick-right-move', 0, 0);
+
+  document.querySelectorAll('.btn-item').forEach((item) => {
+    item.classList.remove('is-pressed');
+    item.querySelector('.btn-value').textContent = '0.00';
+  });
+
+  document.querySelectorAll('.axis-item').forEach((item) => {
+    item.classList.remove('is-active');
+    item.querySelector('.axis-readout b').textContent = '+0.00';
+  });
+
+  document.querySelectorAll('.axis-fill').forEach((fill) => {
+    fill.style.width      = '0%';
+    fill.style.left       = '50%';
+    fill.style.background = PALETTE.neutral;
+  });
+
+  ['axis-0', 'axis-1', 'axis-2', 'axis-3'].forEach((id) => {
+    const readout = byId(id);
+    if (readout) readout.textContent = '+0.00';
+  });
+
+  drawJoystick('joystick-left', 0, 0);
+  drawJoystick('joystick-right', 0, 0);
 }
 
-function hideCards() {
-  ['pad-card', 'buttons-card', 'axes-card', 'log-card']
-    .forEach(id => document.getElementById(id)
-                           .classList.add('hidden'));
+// ─── Zustandsanzeigen ─────────────────────────────────
+
+function setConnectionState(state, text, buttonLabel) {
+  const label = byId('connection-label');
+  label.dataset.state = state;
+  byId('connection-text').textContent = text;
+  byId('connect-button').textContent  = buttonLabel;
 }
 
-function setStatus(connected, message) {
-  const dot     = document.getElementById('status-dot');
-  if (!dot) return;
-  dot.className = 'status-dot ' +
-    (connected ? 'connected' : 'disconnected');
-  document.getElementById('status-text')
-          .textContent = message;
+function setLiveState(running, text) {
+  byId('live-state').classList.toggle('is-running', running);
+  byId('live-state-text').textContent = text;
 }
+
+// ─── Protokoll ────────────────────────────────────────
 
 function addLog(message) {
-  const log = document.getElementById('log-box');
+  const log = byId('log-box');
   if (!log) return;
 
-  const time  = new Date().toLocaleTimeString('de-DE');
   const entry = document.createElement('div');
-  entry.textContent = `[${time}] ${message}`;
+  entry.textContent =
+    `[${new Date().toLocaleTimeString('de-DE')}] ${message}`;
 
   log.appendChild(entry);
+
+  // Ein Protokoll, das nie vergisst, wächst über die Sitzung hinweg zu
+  // einem Speicherproblem.
+  while (log.childElementCount > LOG_LIMIT) log.firstElementChild.remove();
+
   log.scrollTop = log.scrollHeight;
 }
 
 function clearLog() {
-  document.getElementById('log-box').textContent = '';
+  byId('log-box').textContent = '';
 }
