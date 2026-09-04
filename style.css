@@ -457,8 +457,12 @@ h1, h2 { margin: 5px 0 0; font-size: clamp(26px, 3vw, 42px); line-height: 1.05; 
      Mass – und deckelt sie zugleich, damit die Zahlen darunter im Bild
      bleiben. Die Zeichnung schrumpft mit, sonst schöbe sie sich unter die
      Messzeilen am Fuss der Bühne. Kleben würde hier zwei Drittel des Bildes
-     dauerhaft belegen – also bleibt die Bühne stehen, wo sie steht. */
-  .device-stage { position: static; height: 62vh; min-height: 340px; }
+     dauerhaft belegen – also bleibt die Bühne stehen, wo sie steht.
+
+     `relative` und nicht `static`: Das Feld der Zeichnung hängt mit `inset: 0`
+     an der Bühne. Ohne einen Bezug spannte es sich über die ganze Seite, und
+     die Zeichnung sässe in deren Mitte statt auf der Bühne. */
+  .device-stage { position: relative; height: 62vh; min-height: 340px; }
   .pad-svg { width: min(100%, 420px); }
 }
 
