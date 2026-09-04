@@ -467,10 +467,27 @@ h1, h2 { margin: 5px 0 0; font-size: clamp(26px, 3vw, 42px); line-height: 1.05; 
 }
 
 @media (max-width: 640px) {
-  .app-header { height: auto; min-height: 74px; padding: 12px 16px; }
+  /* Die Kopfzeile darf hier umbrechen und ist damit nicht mehr 76 Pixel hoch.
+     Festgesetzt wäre sie auf so wenig Fläche vor allem verlorene Höhe. */
+  .app-header { position: static; height: auto; min-height: 74px; padding: 12px 16px; }
   .connection-label { display: none; }
   .panel { padding: 30px 18px 48px; }
+  /* Die Bühne bleibt randlos. Ohne diese Zeile gäbe ihr die Regel darüber
+     einen Rand, den sie auf keiner anderen Breite hat. */
+  .panel-stage { padding: 0; }
   .stage-main { padding: 30px 18px 48px; }
+
+  /* Auf dem Telefon liegen Beschriftung und Messzeilen nicht mehr über der
+     Zeichnung, sondern darüber und darunter: Auf so wenig Fläche verdeckten
+     sie sonst gerade das, was sie erklären. Das Feld reiht sich dazu einfach
+     ein, statt über der Bühne zu schweben – und die Bühne nimmt die Höhe,
+     die dabei herauskommt. */
+  .stage-label { padding: 18px 18px 10px; }
+  .stage-readout { padding: 10px 18px 18px; background: none; }
+  .device-stage { height: auto; min-height: 0; }
+  .pad-stage { position: relative; padding: 12px 18px 18px; }
+  .pad-svg { width: 100%; max-width: 340px; }
+
   .metric-grid, .joystick-grid { grid-template-columns: 1fr; }
   .buttons-grid { grid-template-columns: repeat(2, 1fr); }
   .toolbar { align-items: flex-start; flex-direction: column; }
