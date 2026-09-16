@@ -50,7 +50,7 @@ const AXIS_DEADZONE = 0.12;
 // bewegen lassen, steht im Modell selbst. Der Pfad des Moduls ist von dieser
 // Datei aus gerechnet, der des Modells vom Dokument: So verlangt es der
 // Browser.
-const MODEL_MODULE = './js/model3d.js?v=6';
+const MODEL_MODULE = './js/model3d.js?v=7';
 const MODEL_URL    = './assets/models/xensiv_game_controller.glb';
 
 // Welche Taste im Modell welches Teil bewegt. Was hier fehlt, hat am
@@ -61,6 +61,10 @@ const MODEL_PARTS  = {
   6: ['trigger', 'left'], 7: ['trigger', 'right']
 };
 const MODEL_STICKS = { 10: 'left', 11: 'right' };
+
+// Steuerkreuz und Aktionstasten sind Tastfelder auf der Platine. Der Siebdruck
+// zeigt sie als Ring; berührt färbt sich die Fläche darin.
+const MODEL_TOUCH  = new Set([0, 1, 2, 3, 12, 13, 14, 15]);
 
 const SEARCH_INTERVAL = 400;
 const RATE_WINDOW     = 500;
@@ -314,6 +318,8 @@ function updatePadButton(index, isPressed, value) {
 
     const stick = MODEL_STICKS[index];
     if (stick) model.setStickPress(stick, isPressed);
+
+    if (MODEL_TOUCH.has(index)) model.setTouch(index, isPressed);
   }
 
   const geometry = TRIGGER_GEOMETRY[index];

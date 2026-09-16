@@ -17,6 +17,11 @@ import { RoomEnvironment } from "three/addons/environments/RoomEnvironment.js";
 const SIDES = ["left", "right"];
 const PARTS = ["trigger", "bumper", "stick"];
 
+// Die acht Tastfelder auf der Platine, unter ihrer Nummer aus der
+// Gamepad-API: Steuerkreuz und Aktionstasten. Sie bewegen sich nicht - beruehrt
+// wird eine Flaeche, kein Knopf -, sie faerben sich nur.
+const TOUCH = [0, 1, 2, 3, 12, 13, 14, 15];
+
 // Die Wege der beweglichen Teile stehen im Modell. Fehlen sie, gelten diese
 // Werte - es sind dieselben, die das Ausfuhrskript eintraegt.
 const FALLBACK = {
@@ -76,6 +81,15 @@ const SETTLED = 0.002;
 const PRESS_COLOR = 0x0a8a7c;
 const PRESS_GLOW = 0.45;
 const PRESS_TONE = new THREE.Color(PRESS_COLOR);
+
+// Ein Tastfeld liegt auf einer gruenen Platine, und ein gruenes Tuerkis darauf
+// faellt kaum auf. Es bekommt deshalb den helleren Ton und mehr Leuchten als
+// die Teile auf dem weissen Gehaeuse - wie ein hinterleuchtetes Feld, das es
+// im Geraet der Sache nach ja auch ist. Heller darf es nicht werden: Im Ring
+// steht ein weisses Zeichen, und das soll lesbar bleiben.
+const TOUCH_COLOR = 0x18c9ad;
+const TOUCH_GLOW = 0.55;
+const TOUCH_TONE = new THREE.Color(TOUCH_COLOR);
 
 export class PadModel {
   constructor(canvas) {
@@ -208,6 +222,15 @@ export class PadModel {
       }
     }
 
+    for (const index of TOUCH) {
+      const key = `touch_${index}`;
+      const node = gltf.scene.getObjectByName(key);
+      if (!node) continue;
+      this.nodes[key] = node;
+      this.rest[key] = node.position.clone();
+      this.skins[key] = materialsOf(node);
+    }
+
     // Die Wege gehoeren zur Mechanik und kommen deshalb aus dem Modell. Zahlen
     // in der Seite waeren eine zweite Stelle, an die denken muesste, wer die
     // Mechanik aendert.
@@ -296,6 +319,12 @@ export class PadModel {
 
   setStickPress(side, pressed) {
     this.#aim(`stick_${side}`, "press", pressed ? 1 : 0);
+  }
+
+  // Ein Tastfeld auf der Platine. Es hat keinen Weg, den es zuruecklegen
+  // koennte - der Ring im Siebdruck fuellt sich, mehr geschieht nicht.
+  setTouch(index, touched) {
+    this.#aim(`touch_${index}`, "press", touched ? 1 : 0);
   }
 
   // Der Blickwinkel, zu dem die Ansicht von selbst zurueckkehrt, als Anteil
@@ -446,7 +475,7 @@ export class PadModel {
     } else if (key.startsWith("bumper")) {
       // Die Schultertaste schiebt sich auf den Betrachter zu, also nach +Z.
       node.position.z = rest.z + this.travel.bumperTravel * shown.press;
-    } else {
+    } else if (key.startsWith("stick")) {
       // Diagonal ausgelenkt melden beide Achsen fast eins. Ohne diese
       // Begrenzung neigte sich der Stick in die Ecken weiter als an seinen
       // Anschlag - der Weg ist aber ein Kreis, kein Quadrat.
@@ -465,13 +494,17 @@ export class PadModel {
   // halb gezogener Trigger ist halb eingefaerbt, und wo der Controller nur
   // gedrueckt oder frei meldet, springt die Farbe eben.
   #tint(key, amount) {
+    const spot = key.startsWith("touch");
+    const tone = spot ? TOUCH_TONE : PRESS_TONE;
+    const glow = spot ? TOUCH_GLOW : PRESS_GLOW;
+
     for (const material of this.skins[key] ?? []) {
       if (!material.userData.baseColor) {
         material.userData.baseColor = material.color.clone();
-        material.emissive = new THREE.Color(PRESS_COLOR);
+        material.emissive = tone.clone();
       }
-      material.color.copy(material.userData.baseColor).lerp(PRESS_TONE, amount);
-      material.emissiveIntensity = amount * PRESS_GLOW;
+      material.color.copy(material.userData.baseColor).lerp(tone, amount);
+      material.emissiveIntensity = amount * glow;
     }
   }
 }
@@ -484,6 +517,7 @@ function blankState() {
         ? { x: 0, y: 0, press: 0 } : { press: 0 };
     }
   }
+  for (const index of TOUCH) state[`touch_${index}`] = { press: 0 };
   return state;
 }
 
