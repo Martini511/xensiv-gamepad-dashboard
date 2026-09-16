@@ -50,7 +50,7 @@ const AXIS_DEADZONE = 0.12;
 // bewegen lassen, steht im Modell selbst. Der Pfad des Moduls ist von dieser
 // Datei aus gerechnet, der des Modells vom Dokument: So verlangt es der
 // Browser.
-const MODEL_MODULE = './js/model3d.js?v=8';
+const MODEL_MODULE = './js/model3d.js?v=9';
 const MODEL_URL    = './assets/models/xensiv_game_controller.glb';
 
 // Welche Taste im Modell welches Teil bewegt. Was hier fehlt, hat am
