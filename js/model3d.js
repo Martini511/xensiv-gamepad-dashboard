@@ -17,10 +17,10 @@ import { RoomEnvironment } from "three/addons/environments/RoomEnvironment.js";
 const SIDES = ["left", "right"];
 const PARTS = ["trigger", "bumper", "stick"];
 
-// Die acht Tastfelder auf der Platine, unter ihrer Nummer aus der
-// Gamepad-API: Steuerkreuz und Aktionstasten. Sie bewegen sich nicht - beruehrt
-// wird eine Flaeche, kein Knopf -, sie faerben sich nur.
-const TOUCH = [0, 1, 2, 3, 12, 13, 14, 15];
+// Die neun Tastfelder auf der Platine, unter ihrer Nummer aus der
+// Gamepad-API: Steuerkreuz, Aktionstasten und Select in der Mitte. Sie bewegen
+// sich nicht - beruehrt wird eine Flaeche, kein Knopf -, sie faerben sich nur.
+const TOUCH = [0, 1, 2, 3, 8, 12, 13, 14, 15];
 
 // Die Wege der beweglichen Teile stehen im Modell. Fehlen sie, gelten diese
 // Werte - es sind dieselben, die das Ausfuhrskript eintraegt.
