@@ -13,7 +13,7 @@
   <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600&amp;family=Source+Sans+3:wght@400;500;600;700&amp;display=swap" rel="stylesheet">
   <!-- Die Fassungsnummer zwingt Browser und Auslieferung dazu, die
        aktuelle Datei zu holen statt einer zwischengespeicherten. -->
-  <link rel="stylesheet" href="./style.css?v=1">
+  <link rel="stylesheet" href="./style.css?v=2">
 </head>
 <body>
 
@@ -46,11 +46,9 @@
           </div>
 
           <div class="pad-stage">
-            <!-- Das animierte CAD-Modell soll die Buehne spaeter uebernehmen.
-                 Solange es fehlt, bleibt das Zeichenfeld verborgen; sichtbar
-                 ist die Zeichnung darunter, die dieselben Zustaende zeigt.
-                 Steht ein Modell bereit, genuegt die Klasse `has-model` auf
-                 der Buehne, um umzuschalten. -->
+            <!-- Das animierte CAD-Modell uebernimmt die Buehne, sobald es
+                 geladen ist. Ohne WebGL oder bei einem Ladefehler bleibt die
+                 Zeichnung darunter stehen - sie zeigt dieselben Zustaende. -->
             <canvas class="pad-canvas" id="pad-canvas" hidden
                     aria-label="Modell des XENSIV Game Controllers"></canvas>
 
@@ -305,8 +303,26 @@
   <!-- Die Fassung ist die laufende Nummer des Stands, aus dem diese Seite
        stammt. Sie ist zugleich die Nummer, die Stil und Skript aus dem
        Zwischenspeicher holt. -->
-  <small class="app-version">v1</small>
+  <small class="app-version">v2</small>
 
-  <script src="./script.js?v=1"></script>
+  <!-- three.js liegt im Projekt statt auf einem fremden Netz: Das Dashboard
+       wird oft ohne Internetzugang am Geraet benutzt. Die Zuordnung gilt fuer
+       das ganze Dokument, also auch fuer das Modul, das die Seite spaeter
+       nachlaedt. -->
+  <script type="importmap">
+    {
+      "imports": {
+        "three": "./js/vendor/three.module.min.js",
+        "three/addons/": "./js/vendor/addons/"
+      }
+    }
+  </script>
+
+  <!-- Ein gewoehnliches Skript, kein Modul. Module holt der Browser ueber
+       CORS, und eine Seite, die von der Festplatte geladen wurde, hat keine
+       Herkunft, gegen die er pruefen koennte - sie bliebe tot, und mit ihr der
+       Knopf, der die Verbindung aufbaut. Das Modell holt sie sich danach
+       selbst; gelingt das nicht, bleibt es bei der Zeichnung. -->
+  <script src="./script.js?v=2"></script>
 </body>
 </html>

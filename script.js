@@ -46,6 +46,22 @@ const PALETTE = {
 // das Zittern der Mechanik von einer Absicht.
 const AXIS_DEADZONE = 0.12;
 
+// Das Modell des Controllers. Wo es liegt und wie weit sich seine Teile
+// bewegen lassen, steht im Modell selbst. Der Pfad des Moduls ist von dieser
+// Datei aus gerechnet, der des Modells vom Dokument: So verlangt es der
+// Browser.
+const MODEL_MODULE = './js/model3d.js?v=2';
+const MODEL_URL    = './assets/models/xensiv_game_controller.glb';
+
+// Welche Taste im Modell welches Teil bewegt. Was hier fehlt, hat am
+// Gehäuse kein bewegliches Gegenstück: D-Pad und Aktionstasten sitzen bei
+// diesem Aufbau unmittelbar auf der Platine.
+const MODEL_PARTS  = {
+  4: ['bumper', 'left'],  5: ['bumper', 'right'],
+  6: ['trigger', 'left'], 7: ['trigger', 'right']
+};
+const MODEL_STICKS = { 10: 'left', 11: 'right' };
+
 const SEARCH_INTERVAL = 400;
 const RATE_WINDOW     = 500;
 const LOG_LIMIT       = 300;
@@ -58,6 +74,7 @@ let activeGamepad   = null;
 let lastButtonState = [];
 let frameCount      = 0;
 let rateStartedAt   = 0;
+let model           = null;
 
 const byId = (id) => document.getElementById(id);
 
@@ -73,8 +90,27 @@ window.addEventListener('load', () => {
   drawJoystick('joystick-left', 0, 0);
   drawJoystick('joystick-right', 0, 0);
 
+  loadModel();
   startSearch();
 });
+
+// Das Modell löst die Zeichnung ab, sobald es steht. Es kommt nachträglich
+// und als Modul, die Seite selbst nicht: So bleibt sie auch dort lauffähig,
+// wo WebGL fehlt oder das Modell sich nicht laden lässt.
+async function loadModel() {
+  const canvas = byId('pad-canvas');
+
+  try {
+    const { PadModel } = await import(MODEL_MODULE);
+    model = await new PadModel(canvas).load(MODEL_URL);
+  } catch (error) {
+    console.warn('3D-Modell nicht verfügbar, die Zeichnung bleibt.', error);
+    return;
+  }
+
+  canvas.hidden = false;
+  canvas.closest('.pad-stage').classList.add('has-model');
+}
 
 // Der Browser gibt ein Gamepad erst frei, nachdem daran eine Taste gedrückt
 // wurde. Das Ereignis ist deshalb der verlässlichere Weg als jede Abfrage –
@@ -266,9 +302,15 @@ function updateButtons(buttons) {
 
 function updatePadButton(index, isPressed, value) {
   const pad = byId(`pad-${index}`);
-  if (!pad) return;
+  if (pad) pad.classList.toggle('is-pressed', isPressed);
 
-  pad.classList.toggle('is-pressed', isPressed);
+  if (model) {
+    const part = MODEL_PARTS[index];
+    if (part) model.setPress(part[0], part[1], value);
+
+    const stick = MODEL_STICKS[index];
+    if (stick) model.setStickPress(stick, isPressed);
+  }
 
   const geometry = TRIGGER_GEOMETRY[index];
   const fill     = byId(`trigger-fill-${index}`);
@@ -332,6 +374,20 @@ function updateAxes(axes) {
 
   updateStick('stick-left-move', leftX, leftY);
   updateStick('stick-right-move', rightX, rightY);
+
+  if (model) {
+    model.setAxes(beyondDeadzone(leftX), beyondDeadzone(leftY),
+                  beyondDeadzone(rightX), beyondDeadzone(rightY));
+  }
+}
+
+// Innerhalb der Totzone steht der Stick still, jenseits davon läuft sein Weg
+// wieder von null bis eins. Ohne diese Streckung spränge das Modell beim
+// Verlassen der Totzone um deren Betrag.
+function beyondDeadzone(value) {
+  const reach = Math.abs(value);
+  if (reach <= AXIS_DEADZONE) return 0;
+  return Math.sign(value) * (reach - AXIS_DEADZONE) / (1 - AXIS_DEADZONE);
 }
 
 function updateStick(elementId, x, y) {
@@ -483,6 +539,8 @@ function resetReadouts() {
 
   updateStick('stick-left-move', 0, 0);
   updateStick('stick-right-move', 0, 0);
+
+  if (model) model.reset();
 
   document.querySelectorAll('.btn-item').forEach((item) => {
     item.classList.remove('is-pressed');
