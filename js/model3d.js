@@ -89,6 +89,7 @@ export class PadModel {
     this.frame = 0;
 
     this.nodes = {};
+    this.rest = {};
     this.skins = {};
     this.travel = { ...FALLBACK };
 
@@ -189,6 +190,9 @@ export class PadModel {
         const node = gltf.scene.getObjectByName(key);
         if (!node) throw new Error(`node "${key}" missing`);
         this.nodes[key] = node;
+        // Der Knoten steht schon an seinem Platz - der Stick auf seinem
+        // Kugelpunkt. Ein Weg wird von dort aus gegangen, nicht von Null aus.
+        this.rest[key] = node.position.clone();
         this.skins[key] = materialsOf(node);
       }
     }
@@ -412,13 +416,14 @@ export class PadModel {
   #place(key, shown) {
     const node = this.nodes[key];
     if (!node) return;
+    const rest = this.rest[key];
 
     if (key.startsWith("trigger")) {
       node.rotation.x = THREE.MathUtils.degToRad(
         this.travel.triggerTravel * shown.press);
     } else if (key.startsWith("bumper")) {
       // Die Schultertaste schiebt sich auf den Betrachter zu, also nach +Z.
-      node.position.z = this.travel.bumperTravel * shown.press;
+      node.position.z = rest.z + this.travel.bumperTravel * shown.press;
     } else {
       // Diagonal ausgelenkt melden beide Achsen fast eins. Ohne diese
       // Begrenzung neigte sich der Stick in die Ecken weiter als an seinen
@@ -428,7 +433,7 @@ export class PadModel {
       const tilt = THREE.MathUtils.degToRad(this.travel.stickTilt);
       node.rotation.x = tilt * shown.y * scale;
       node.rotation.z = -tilt * shown.x * scale;
-      node.position.y = -this.travel.stickPress * shown.press;
+      node.position.y = rest.y - this.travel.stickPress * shown.press;
     }
 
     this.#tint(key, shown.press);
