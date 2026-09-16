@@ -50,7 +50,7 @@ const AXIS_DEADZONE = 0.12;
 // bewegen lassen, steht im Modell selbst. Der Pfad des Moduls ist von dieser
 // Datei aus gerechnet, der des Modells vom Dokument: So verlangt es der
 // Browser.
-const MODEL_MODULE = './js/model3d.js?v=4';
+const MODEL_MODULE = './js/model3d.js?v=5';
 const MODEL_URL    = './assets/models/xensiv_game_controller.glb';
 
 // Welche Taste im Modell welches Teil bewegt. Was hier fehlt, hat am
@@ -107,6 +107,10 @@ async function loadModel() {
     console.warn('3D-Modell nicht verfügbar, die Zeichnung bleibt.', error);
     return;
   }
+
+  const view = byId('stage-view');
+  view.addEventListener('input', () => model.setView(view.value / view.max));
+  model.setView(view.value / view.max);
 
   canvas.hidden = false;
   canvas.closest('.pad-stage').classList.add('has-model');

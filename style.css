@@ -222,6 +222,36 @@ h1, h2 { margin: 5px 0 0; font-size: clamp(26px, 3vw, 42px); line-height: 1.05; 
 .pad-canvas[hidden] { display: none; }
 .has-model .pad-svg { display: none; }
 
+/* Der Regler für den Blickwinkel steht am linken Rand der Bühne. Er liegt über
+   dem Zeichenfeld und nimmt als Einziges dort Zeiger an – ginge das Ziehen an
+   ihm vorbei ins Modell, liesse sich beides nicht mehr auseinanderhalten.
+   Ohne Modell hat er nichts zu regeln und bleibt fort. */
+.stage-view { display: none; }
+.has-model .stage-view {
+  position: absolute;
+  left: clamp(10px, 1.6vw, 24px);
+  top: 50%;
+  transform: translateY(-50%);
+  z-index: 2;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 10px;
+}
+.stage-view span { color: #9fb3b5; font: 500 9px "IBM Plex Mono", monospace; }
+/* Senkrecht von unten nach oben: `vertical-lr` stellt den Regler auf, `rtl`
+   legt den kleinen Wert nach unten. */
+.stage-view input {
+  writing-mode: vertical-lr;
+  direction: rtl;
+  width: 18px;
+  height: min(240px, 30vh);
+  margin: 0;
+  background: transparent;
+  accent-color: var(--accent-soft);
+  cursor: pointer;
+}
+
 .stage-readout {
   position: relative;
   z-index: 1;

@@ -26,13 +26,21 @@ const FALLBACK = {
   stickPress: 0.0012,                                    // m
 };
 
-// Blickrichtung ohne Zutun des Betrachters: von schraeg oben auf die
-// Oberseite, so wie der Controller vor einem liegt - leicht aus der Achse
-// gedreht, damit das Geraet eine Tiefe bekommt und nicht als Aufriss
-// dasteht. Gedreht wird nur ein wenig: Wer links drueckt, soll den Stick auch
-// links sehen, und das ginge bei einem Blick von vorn verloren. Winkel als
+// Die beiden Blickrichtungen, zwischen denen der Regler blendet. Winkel als
 // Kugelkoordinaten um den Modellmittelpunkt.
-const HOME = { azimuth: 0.15, polar: 0.78 };
+//
+// Die erste zeigt das Geraet, wie es vor einem liegt: von schraeg oben auf die
+// Oberseite, leicht aus der Achse gedreht, damit es eine Tiefe bekommt und
+// nicht als Aufriss dasteht. Gedreht wird nur wenig, denn wer links drueckt,
+// soll den Stick auch links sehen.
+//
+// Die zweite kippt um die Ecke auf die Vorderseite. Dort sitzen Trigger und
+// Schultertasten, und von oben liegen sie hinter dem Gehaeuse - ihre Bewegung
+// ist nur von hier aus zu sehen.
+const VIEWS = [
+  { azimuth: 0.15, polar: 0.78 },
+  { azimuth: 2.35, polar: 0.75 },
+];
 const POLAR_LIMITS = [0.18, 1.4];
 
 // Luft zwischen Modell und Bildrand. Der Controller ist breit und flach; was
@@ -61,10 +69,12 @@ const EASE = 0.35;
 const SETTLED = 0.002;
 
 // Gedrueckt wird das Teil eingefaerbt, nicht nur aufgehellt: Auf dem hellen
-// Gehaeuse ginge ein reiner Leuchtanteil im Glanzlicht unter. Die Farbe ist
-// dieselbe, die auch die Zeichnung benutzt.
-const PRESS_COLOR = 0x12a190;
-const PRESS_GLOW = 0.3;
+// Gehaeuse ginge ein reiner Leuchtanteil im Glanzlicht unter. Eingefaerbt wird
+// voll und mit dem satten Ton der Oberflaeche, nicht mit einer Beimischung -
+// die Schultertaste zeigt von oben nur eine schmale Kante, und auf der faellt
+// ein blasses Tuerkis niemandem auf.
+const PRESS_COLOR = 0x0a8a7c;
+const PRESS_GLOW = 0.45;
 const PRESS_TONE = new THREE.Color(PRESS_COLOR);
 
 export class PadModel {
@@ -82,8 +92,9 @@ export class PadModel {
     this.pivot = new THREE.Group();
     this.scene.add(this.pivot);
 
-    this.azimuth = HOME.azimuth;
-    this.polar = HOME.polar;
+    this.azimuth = VIEWS[0].azimuth;
+    this.polar = VIEWS[0].polar;
+    this.home = { ...VIEWS[0] };
     this.lastInput = 0;
     this.visible = true;
     this.frame = 0;
@@ -287,6 +298,17 @@ export class PadModel {
     this.#aim(`stick_${side}`, "press", pressed ? 1 : 0);
   }
 
+  // Der Blickwinkel, zu dem die Ansicht von selbst zurueckkehrt, als Anteil
+  // zwischen Aufsicht und Vorderseite. Gesetzt wird damit die Ruhelage, nicht
+  // die Kamera: Sie gleitet dorthin, statt umzuspringen.
+  setView(share) {
+    const reach = clamp(share, 0, 1);
+    this.home.azimuth = mix(VIEWS[0].azimuth, VIEWS[1].azimuth, reach);
+    this.home.polar = mix(VIEWS[0].polar, VIEWS[1].polar, reach);
+    this.lastInput = 0;
+    this.#invalidate();
+  }
+
   // Alles zurueck in die Ruhelage - beim Trennen der Verbindung meldet kein
   // Geraet mehr, dass es losgelassen wurde.
   reset() {
@@ -384,15 +406,15 @@ export class PadModel {
     }
 
     if (performance.now() - this.lastInput > RETURN_DELAY) {
-      const azimuth = shortestAngle(this.azimuth, HOME.azimuth);
-      const polar = HOME.polar - this.polar;
+      const azimuth = shortestAngle(this.azimuth, this.home.azimuth);
+      const polar = this.home.polar - this.polar;
       this.azimuth += azimuth * RETURN_EASE;
       this.polar += polar * RETURN_EASE;
       const arrived = Math.abs(azimuth) <= 1e-4 && Math.abs(polar) <= 1e-4;
       moving = moving || !arrived;
       if (arrived) {
-        this.azimuth = HOME.azimuth;
-        this.polar = HOME.polar;
+        this.azimuth = this.home.azimuth;
+        this.polar = this.home.polar;
       }
     }
 
@@ -448,8 +470,7 @@ export class PadModel {
         material.userData.baseColor = material.color.clone();
         material.emissive = new THREE.Color(PRESS_COLOR);
       }
-      material.color.copy(material.userData.baseColor)
-        .lerp(PRESS_TONE, amount * 0.85);
+      material.color.copy(material.userData.baseColor).lerp(PRESS_TONE, amount);
       material.emissiveIntensity = amount * PRESS_GLOW;
     }
   }
@@ -480,6 +501,10 @@ function materialsOf(node) {
 
 function clamp(value, low, high) {
   return Math.min(high, Math.max(low, value));
+}
+
+function mix(from, to, share) {
+  return from + (to - from) * share;
 }
 
 // Der kuerzere der beiden Wege zwischen zwei Winkeln - sonst liefe die Ansicht
