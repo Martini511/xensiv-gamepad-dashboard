@@ -1,35 +1,40 @@
 <!doctype html>
-<html lang="de">
+<html lang="en">
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <meta name="theme-color" content="#f2f5f5">
   <title>Infineon | XENSIV&trade; Game Controller Dashboard</title>
   <meta name="description"
-        content="Infineon Demo-Anwendung: Live-Visualisierung von
-                 Eingabeger&auml;ten &uuml;ber die Web Gamepad API.">
+        content="Infineon demo application: live visualization of input
+                 devices over the Web Gamepad API.">
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600&amp;family=Source+Sans+3:wght@400;500;600;700&amp;display=swap" rel="stylesheet">
   <!-- Die Fassungsnummer zwingt Browser und Auslieferung dazu, die
        aktuelle Datei zu holen statt einer zwischengespeicherten. -->
-  <link rel="stylesheet" href="./style.css?v=10">
+  <link rel="stylesheet" href="./style.css?v=11">
 </head>
 <body>
 
   <header class="app-header">
-    <a class="brand" href="./" aria-label="Infineon XENSIV Game Controller Dashboard">
+    <a class="brand" href="./" data-i18n-aria="brand.aria"
+       aria-label="Infineon XENSIV game controller dashboard">
       <img class="brand-logo" src="./lowres-Logo_Infineon_RGB.eps.png" alt="Infineon Technologies">
       <span class="brand-text">
-        <strong>XENSIV&trade; Game Controller</strong>
-        <small>Live-Konsole</small>
+        <strong data-i18n="brand.name">XENSIV&trade; Game Controller</strong>
+        <small data-i18n="brand.sub">Live console</small>
       </span>
     </a>
     <div class="connection-tools">
       <div id="connection-label" class="connection-label" data-state="offline">
-        <span class="status-dot"></span><span id="connection-text">Nicht verbunden</span>
+        <span class="status-dot"></span><span id="connection-text">Not connected</span>
       </div>
-      <button id="connect-button" class="primary-button">Controller suchen</button>
+      <!-- Die Sprachwahl betrifft die Seite, nicht das Geraet, und bleibt
+           deshalb auch ohne Verbindung bedienbar. -->
+      <select id="language" class="language-select"
+              data-i18n-aria="lang.aria" aria-label="Language"></select>
+      <button id="connect-button" class="primary-button">Search for controller</button>
     </div>
   </header>
 
@@ -42,7 +47,7 @@
 
         <aside class="device-stage">
           <div class="stage-label">
-            <span>GER&Auml;T 01</span><span>GAMEPAD API</span>
+            <span data-i18n="stage.device">DEVICE 01</span><span data-i18n="stage.api">GAMEPAD API</span>
           </div>
 
           <div class="pad-stage">
@@ -50,7 +55,8 @@
                  geladen ist. Ohne WebGL oder bei einem Ladefehler bleibt die
                  Zeichnung darunter stehen - sie zeigt dieselben Zustaende. -->
             <canvas class="pad-canvas" id="pad-canvas" hidden
-                    aria-label="Modell des XENSIV Game Controllers"></canvas>
+                    data-i18n-aria="model.aria"
+                    aria-label="Model of the XENSIV game controller"></canvas>
 
             <!-- Trigger und Schultertasten sitzen an der Vorderkante; von oben
                  liegen sie hinter dem Gehaeuse, und ihre Bewegung bleibt
@@ -58,15 +64,16 @@
                  ihnen zusieht. Er gehoert zum Modell und erscheint nur mit
                  ihm. -->
             <div class="stage-view">
-              <span>VORN</span>
+              <span data-i18n="view.front">FRONT</span>
               <input id="stage-view" type="range" min="0" max="100" value="0"
-                     aria-label="Blickwinkel auf das Modell">
-              <span>OBEN</span>
+                     data-i18n-aria="view.aria"
+                     aria-label="Viewing angle of the model">
+              <span data-i18n="view.top">TOP</span>
             </div>
 
             <svg class="pad-svg" viewBox="0 0 640 500" role="img"
-                 aria-label="Schematische Darstellung des XENSIV
-                             Game Controllers">
+                 data-i18n-aria="svg.aria"
+                 aria-label="Schematic view of the XENSIV game controller">
 
               <defs>
                 <clipPath id="clip-l2">
@@ -219,69 +226,72 @@
                Name des Geraets, der in einer Kopfzeile abschneiden wuerde. -->
           <div class="stage-readout">
             <div class="stage-line">
-              <span>MODELL</span><strong id="stage-device">&ndash;</strong>
+              <span data-i18n="stage.model">MODEL</span><strong id="stage-device">&ndash;</strong>
             </div>
           </div>
         </aside>
 
         <section class="stage-main">
           <div class="section-heading">
-            <div><span class="eyebrow">LIVE-TELEMETRIE</span><h1>Eingabewerte</h1></div>
+            <div><span class="eyebrow" data-i18n="live.eyebrow">LIVE TELEMETRY</span><h1 data-i18n="live.heading">Input values</h1></div>
             <span class="section-index">01</span>
           </div>
 
           <div class="toolbar">
-            <span class="live-state" id="live-state"><i></i><span id="live-state-text">Nicht verbunden</span></span>
+            <span class="live-state" id="live-state"><i></i><span id="live-state-text">Not connected</span></span>
             <div class="stream-controls">
-              <span class="rate-actual">erreicht <b id="poll-actual">&ndash;</b> Hz</span>
+              <span class="rate-actual"><span data-i18n="live.rateBefore">reaching</span>
+                <b id="poll-actual">&ndash;</b> <span data-i18n="live.rateAfter">Hz</span></span>
             </div>
           </div>
 
           <div class="metric-grid">
             <div class="metric-card">
-              <span>STICK LINKS</span><strong class="metric-pair" id="metric-left">-- / --</strong><small>Achse 0 / 1</small>
+              <span data-i18n="metric.left">LEFT STICK</span><strong class="metric-pair" id="metric-left">-- / --</strong><small data-i18n="metric.axes01">Axis 0 / 1</small>
             </div>
             <div class="metric-card">
-              <span>STICK RECHTS</span><strong class="metric-pair" id="metric-right">-- / --</strong><small>Achse 2 / 3</small>
+              <span data-i18n="metric.right">RIGHT STICK</span><strong class="metric-pair" id="metric-right">-- / --</strong><small data-i18n="metric.axes23">Axis 2 / 3</small>
             </div>
             <!-- Schulter und Trigger kennen an diesem Geraet nur zwei
                  Zustaende. Eine Zahl mit zwei Nachkommastellen behauptete eine
                  Aufloesung, die es nicht gibt - also zeigt die Karte, ob
                  gedrueckt wird oder nicht. -->
             <div class="metric-card">
-              <span>SCHULTER L1 / R1</span>
+              <span data-i18n="metric.shoulder">SHOULDER L1 / R1</span>
               <strong class="state-pair">
                 <i class="state-chip" id="state-4">L1</i><i class="state-chip" id="state-5">R1</i>
               </strong>
-              <small>gedr&uuml;ckt oder frei</small>
+              <small data-i18n="metric.pressedOrFree">pressed or free</small>
             </div>
             <div class="metric-card">
-              <span>TRIGGER L2 / R2</span>
+              <span data-i18n="metric.trigger">TRIGGER L2 / R2</span>
               <strong class="state-pair">
                 <i class="state-chip" id="state-6">L2</i><i class="state-chip" id="state-7">R2</i>
               </strong>
-              <small>gedr&uuml;ckt oder frei</small>
+              <small data-i18n="metric.pressedOrFree">pressed or free</small>
             </div>
             <div class="metric-card">
-              <span>TASTEN AKTIV</span><strong id="metric-pressed">--</strong><small>gleichzeitig gedr&uuml;ckt</small>
+              <span data-i18n="metric.active">BUTTONS ACTIVE</span><strong id="metric-pressed">--</strong><small data-i18n="metric.atOnce">pressed at once</small>
             </div>
           </div>
 
-          <h2 class="subhead">Joysticks</h2>
+          <h2 class="subhead" data-i18n="sticks.heading">Joysticks</h2>
           <div class="joystick-grid">
             <div class="joystick-card">
-              <span class="joystick-title">LINKS</span>
+              <span class="joystick-title" data-i18n="stick.left">LEFT</span>
               <canvas id="joystick-left" width="150" height="150"
-                      aria-label="Auslenkung des linken Joysticks"></canvas>
+                      data-i18n-aria="stick.leftAria"
+                      aria-label="Deflection of the left joystick"></canvas>
               <div class="axis-values">
                 <span>X <b id="axis-0">+0.00</b></span>
                 <span>Y <b id="axis-1">+0.00</b></span>
               </div>
             </div>
             <div class="joystick-card">
-              <span class="joystick-title">RECHTS</span>
+              <span class="joystick-title" data-i18n="stick.right">RIGHT</span>
               <canvas id="joystick-right" width="150" height="150"
-                      aria-label="Auslenkung des rechten Joysticks"></canvas>
+                      data-i18n-aria="stick.rightAria"
+                      aria-label="Deflection of the right joystick"></canvas>
               <div class="axis-values">
                 <span>X <b id="axis-2">+0.00</b></span>
                 <span>Y <b id="axis-3">+0.00</b></span>
@@ -289,23 +299,22 @@
             </div>
           </div>
 
-          <h2 class="subhead">Achsen</h2>
+          <h2 class="subhead" data-i18n="axes.heading">Axes</h2>
           <div class="axis-list" id="axes-bars"></div>
 
-          <h2 class="subhead">Tasten</h2>
+          <h2 class="subhead" data-i18n="buttons.heading">Buttons</h2>
           <div class="buttons-grid" id="buttons-grid"></div>
 
           <div class="subhead-row">
-            <h2 class="subhead">Ereignisprotokoll</h2>
-            <button id="clear-log" class="text-button">Leeren</button>
+            <h2 class="subhead" data-i18n="log.heading">Event log</h2>
+            <button id="clear-log" class="text-button" data-i18n="log.clear">Clear</button>
           </div>
-          <div class="log-box" id="log-box" data-empty="Noch keine Ereignisse."></div>
+          <div class="log-box" id="log-box" data-empty="No events yet."></div>
 
-          <p class="hint">
-            Verbinden Sie den Controller per USB oder Bluetooth und dr&uuml;cken
-            Sie eine beliebige Taste &ndash; der Browser gibt das Ger&auml;t erst
-            nach dieser Eingabe frei. Unterst&uuml;tzt werden Ger&auml;te mit
-            16 Tasten und 4 Achsen.
+          <p class="hint" data-i18n="hint">
+            Connect the controller over USB or Bluetooth and press any button
+            &ndash; the browser only releases the device after that input.
+            Devices with 16 buttons and 4 axes are supported.
           </p>
         </section>
       </div>
@@ -315,7 +324,7 @@
   <!-- Die Fassung ist die laufende Nummer des Stands, aus dem diese Seite
        stammt. Sie ist zugleich die Nummer, die Stil und Skript aus dem
        Zwischenspeicher holt. -->
-  <small class="app-version">v10</small>
+  <small class="app-version">v11</small>
 
   <!-- three.js liegt im Projekt statt auf einem fremden Netz: Das Dashboard
        wird oft ohne Internetzugang am Geraet benutzt. Die Zuordnung gilt fuer
@@ -334,7 +343,11 @@
        CORS, und eine Seite, die von der Festplatte geladen wurde, hat keine
        Herkunft, gegen die er pruefen koennte - sie bliebe tot, und mit ihr der
        Knopf, der die Verbindung aufbaut. Das Modell holt sie sich danach
-       selbst; gelingt das nicht, bleibt es bei der Zeichnung. -->
-  <script src="./script.js?v=10"></script>
+       selbst; gelingt das nicht, bleibt es bei der Zeichnung.
+
+       Die Sprachen stehen vor dem Skript der Seite: Es greift beim Aufbau der
+       Listen schon darauf zu. -->
+  <script src="./js/i18n.js?v=11"></script>
+  <script src="./script.js?v=11"></script>
 </body>
 </html>

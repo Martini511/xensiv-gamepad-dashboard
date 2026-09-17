@@ -18,11 +18,6 @@ const BUTTON_NAMES = {
   16: 'Control'
 };
 
-const AXIS_NAMES = {
-  0: 'Links X', 1: 'Links Y',
-  2: 'Rechts X', 3: 'Rechts Y'
-};
-
 // Analoge Trigger in der Zeichnung: Fassung bleibt stehen, gefüllt wird
 // von unten nach Wert.
 const TRIGGER_GEOMETRY = {
@@ -50,7 +45,7 @@ const AXIS_DEADZONE = 0.12;
 // bewegen lassen, steht im Modell selbst. Der Pfad des Moduls ist von dieser
 // Datei aus gerechnet, der des Modells vom Dokument: So verlangt es der
 // Browser.
-const MODEL_MODULE = './js/model3d.js?v=10';
+const MODEL_MODULE = './js/model3d.js?v=11';
 const MODEL_URL    = './assets/models/xensiv_game_controller.glb';
 
 // Welche Taste im Modell welches Teil bewegt. Was hier fehlt, hat am
@@ -80,11 +75,23 @@ let frameCount      = 0;
 let rateStartedAt   = 0;
 let model           = null;
 
+// Was die Anzeigen gerade sagen, steht hier als Schlüssel und nicht als Text:
+// Beim Sprachwechsel werden sie damit neu gesetzt, ohne dass die Seite raten
+// muss, in welchem Zustand sie ist. Aus demselben Grund merkt sie sich, wie
+// viele Achsen und Tasten das Gerät hat - die beiden Listen werden beim
+// Wechsel neu aufgebaut.
+let connectionKey   = 'state.offline';
+let connectKey      = 'header.search';
+let liveKey         = 'state.offline';
+let axisCount       = REQUIRED_AXES;
+let buttonCount     = REQUIRED_BUTTONS;
+
 const byId = (id) => document.getElementById(id);
 
 // ─── Start ────────────────────────────────────────────
 
 window.addEventListener('load', () => {
+  buildLanguageSelect();
   buildAxisBars(REQUIRED_AXES);
   buildButtonItems(REQUIRED_BUTTONS);
 
@@ -94,9 +101,41 @@ window.addEventListener('load', () => {
   drawJoystick('joystick-left', 0, 0);
   drawJoystick('joystick-right', 0, 0);
 
+  // Beim ersten Aufruf steht das Englische schon im Markup. Nur wenn eine
+  // andere Sprache gemerkt ist, ändert dieser Aufruf etwas.
+  I18N.translate();
+  I18N.onLanguage(refreshTexts);
+
   loadModel();
   startSearch();
 });
+
+function buildLanguageSelect() {
+  const select = byId('language');
+
+  Object.entries(I18N.LANGUAGES).forEach(([code, name]) => {
+    const option = document.createElement('option');
+    option.value       = code;
+    option.textContent = name;
+    select.appendChild(option);
+  });
+
+  select.value = I18N.language();
+  select.addEventListener('change', ({ target }) => I18N.setLanguage(target.value));
+}
+
+// Was nicht im Markup steht, setzt der Sprachwechsel hier neu. Das Protokoll
+// bleibt, wie es geschrieben wurde: Es hält fest, was geschehen ist, und das
+// ist in der Sprache geschehen, in der es dastand.
+function refreshTexts() {
+  byId('connection-text').textContent = I18N.t(connectionKey);
+  byId('connect-button').textContent  = I18N.t(connectKey);
+  byId('live-state-text').textContent = I18N.t(liveKey);
+  byId('log-box').dataset.empty       = I18N.t('log.empty');
+
+  buildAxisBars(axisCount);
+  buildButtonItems(buttonCount);
+}
 
 // Das Modell löst die Zeichnung ab, sobald es steht. Es kommt nachträglich
 // und als Modul, die Seite selbst nicht: So bleibt sie auch dort lauffähig,
@@ -133,7 +172,7 @@ window.addEventListener('gamepaddisconnected', (event) => {
 
 function toggleSearch() {
   if (activeGamepad !== null) {
-    releaseGamepad('Verbindung gelöst');
+    releaseGamepad('msg.released');
     return;
   }
 
@@ -143,8 +182,8 @@ function toggleSearch() {
 function startSearch() {
   if (searchTimer !== null) return;
 
-  setConnectionState('searching', 'Suche läuft', 'Suche abbrechen');
-  setLiveState(false, 'Warte auf Tastendruck am Controller');
+  setConnectionState('searching', 'state.searching', 'header.stop');
+  setLiveState(false, 'live.waiting');
 
   searchTimer = setInterval(scanForGamepads, SEARCH_INTERVAL);
   scanForGamepads();
@@ -156,8 +195,8 @@ function stopSearch() {
   clearInterval(searchTimer);
   searchTimer = null;
 
-  setConnectionState('offline', 'Nicht verbunden', 'Controller suchen');
-  setLiveState(false, 'Nicht verbunden');
+  setConnectionState('offline', 'state.offline', 'header.search');
+  setLiveState(false, 'state.offline');
 }
 
 function isSupportedGamepad(gamepad) {
@@ -191,31 +230,34 @@ function initController(gamepad) {
   // Taste ein Loslassen ins Protokoll, das nie stattgefunden hat.
   lastButtonState = new Array(gamepad.buttons.length).fill(false);
 
-  setConnectionState('online', 'Verbunden', 'Verbindung lösen');
-  setLiveState(true, 'Datenerfassung läuft');
+  setConnectionState('online', 'state.online', 'header.release');
+  setLiveState(true, 'live.running');
 
   const device = byId('stage-device');
   device.textContent = gamepad.id;
   device.title       = gamepad.id;
 
-  buildAxisBars(gamepad.axes.length);
-  buildButtonItems(gamepad.buttons.length);
+  axisCount   = gamepad.axes.length;
+  buttonCount = gamepad.buttons.length;
+  buildAxisBars(axisCount);
+  buildButtonItems(buttonCount);
 
-  addLog(`[OK]  Gerät verbunden: ${gamepad.id}`);
-  addLog(`      Tasten: ${gamepad.buttons.length} | Achsen: ${gamepad.axes.length}`);
+  addLog(I18N.t('msg.connected', { id: gamepad.id }));
+  addLog(I18N.t('msg.profile',
+    { buttons: buttonCount, axes: axisCount }));
 
   startPolling();
 }
 
 function handleDisconnect() {
-  releaseGamepad('Verbindung zum Gerät getrennt');
+  releaseGamepad('msg.lost');
   startSearch();
 }
 
-function releaseGamepad(message) {
+function releaseGamepad(key) {
   if (activeGamepad === null) return;
 
-  addLog(`[!]   ${message}`);
+  addLog(`[!]   ${I18N.t(key)}`);
 
   activeGamepad = null;
 
@@ -228,8 +270,8 @@ function releaseGamepad(message) {
   device.textContent = '–';
   device.removeAttribute('title');
 
-  setConnectionState('offline', 'Nicht verbunden', 'Controller suchen');
-  setLiveState(false, 'Nicht verbunden');
+  setConnectionState('offline', 'state.offline', 'header.search');
+  setLiveState(false, 'state.offline');
   resetReadouts();
 }
 
@@ -298,10 +340,8 @@ function updateButtons(buttons) {
 
     if (lastButtonState[index] !== isPressed) {
       lastButtonState[index] = isPressed;
-      const name = BUTTON_NAMES[index] || `Btn ${index}`;
-      addLog(isPressed
-        ? `[IN]  ${name} — gedrückt`
-        : `[IN]  ${name} — losgelassen`);
+      const name = BUTTON_NAMES[index] || I18N.t('button.other', { index });
+      addLog(I18N.t(isPressed ? 'msg.pressed' : 'msg.let', { name }));
     }
   });
 
@@ -483,7 +523,7 @@ function buildAxisBars(count) {
     item.innerHTML = `
       <div class="axis-head">
         <span class="axis-name"><i class="axis-dot"></i></span>
-        <span class="axis-readout">Wert <b id="axis-value-${index}">+0.00</b></span>
+        <span class="axis-readout">${I18N.t('axis.value')} <b id="axis-value-${index}">+0.00</b></span>
       </div>
       <div class="axis-track"><div class="axis-fill" id="axis-fill-${index}"></div></div>
       <div class="axis-scale"><span>-1.00</span><span>0</span><span>+1.00</span></div>`;
@@ -491,11 +531,18 @@ function buildAxisBars(count) {
     // Der Name kommt als Text und nicht als Auszeichnung in die Zeile: Er
     // stammt zwar aus einer eigenen Liste, aber Gerätenamen sind nichts,
     // dem man Auszeichnung zutrauen sollte.
-    item.querySelector('.axis-name')
-        .append(AXIS_NAMES[index] || `Achse ${index}`);
+    item.querySelector('.axis-name').append(axisName(index));
 
     list.appendChild(item);
   }
+}
+
+// Die vier Achsen dieses Controllers tragen Namen. Ein Gerät mit mehr Achsen
+// hätte für die übrigen keine – die bekommen ihre Nummer.
+function axisName(index) {
+  const key  = `axis.${index}`;
+  const text = I18N.t(key);
+  return text === key ? I18N.t('axis.other', { index }) : text;
 }
 
 function buildButtonItems(count) {
@@ -513,7 +560,7 @@ function buildButtonItems(count) {
 
     const name = document.createElement('span');
     name.className   = 'btn-name';
-    name.textContent = BUTTON_NAMES[index] || `Btn ${index}`;
+    name.textContent = BUTTON_NAMES[index] || I18N.t('button.other', { index });
 
     const value = document.createElement('span');
     value.className   = 'btn-value';
@@ -579,16 +626,20 @@ function resetReadouts() {
 
 // ─── Zustandsanzeigen ─────────────────────────────────
 
-function setConnectionState(state, text, buttonLabel) {
+function setConnectionState(state, textKey, buttonKey) {
+  connectionKey = textKey;
+  connectKey    = buttonKey;
+
   const label = byId('connection-label');
   label.dataset.state = state;
-  byId('connection-text').textContent = text;
-  byId('connect-button').textContent  = buttonLabel;
+  byId('connection-text').textContent = I18N.t(textKey);
+  byId('connect-button').textContent  = I18N.t(buttonKey);
 }
 
-function setLiveState(running, text) {
+function setLiveState(running, key) {
+  liveKey = key;
   byId('live-state').classList.toggle('is-running', running);
-  byId('live-state-text').textContent = text;
+  byId('live-state-text').textContent = I18N.t(key);
 }
 
 // ─── Protokoll ────────────────────────────────────────
@@ -599,7 +650,7 @@ function addLog(message) {
 
   const entry = document.createElement('div');
   entry.textContent =
-    `[${new Date().toLocaleTimeString('de-DE')}] ${message}`;
+    `[${new Date().toLocaleTimeString(I18N.clock())}] ${message}`;
 
   log.appendChild(entry);
 
